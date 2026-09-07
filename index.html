@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#030712">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>OmniLab Pro Station // Multi-Engine & XiaoZhi Hub</title>
   
+  <!-- PWA Manifest Inline gotowy pod PWA Builder -->
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22OmniLab%20Pro%20Station%22%2C%22short_name%22%3A%22OmniLab%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23030712%22%2C%22theme_color%22%3A%22%2300f0ff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fapi.iconify.design%2Fmdi%3Ashield-bug.svg%3Fcolor%3D%252300f0ff%22%2C%22sizes%22%3A%22192x192%20512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+
   <style>
     :root {
       --bg: #030712;
@@ -23,343 +29,1474 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: var(--bg); color: var(--text); padding: 12px; padding-bottom: 90px; }
+    body { background: var(--bg); color: var(--text); padding: 10px; padding-bottom: 95px; }
 
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding-bottom: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       border-bottom: 1px solid var(--border);
     }
-    .logo { font-size: 1.1rem; font-weight: 800; color: var(--accent); letter-spacing: 0.5px; }
-    .status-badge { font-size: 0.75rem; background: rgba(0,240,255,0.1); color: var(--accent); padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(0,240,255,0.3); }
+    header h1 { font-size: 0.95rem; color: var(--accent); font-weight: 800; letter-spacing: 0.5px; }
 
-    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-    @media (min-width: 600px) { .grid { grid-template-columns: 1fr 1fr; } }
+    /* MENU MODUŁÓW */
+    .module-manager {
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+    }
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .toggle-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      color: var(--sub);
+      padding: 6px 4px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      user-select: none;
+    }
+    .toggle-btn.active {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--accent);
+      color: #fff;
+    }
 
     .card {
       background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
       position: relative;
-      overflow: hidden;
     }
-    .card-title { font-size: 0.85rem; font-weight: 700; color: var(--sub); text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .card.hidden { display: none !important; }
 
-    /* Barometr */
-    .baro-val { font-size: 2.2rem; font-weight: 800; color: var(--gold); }
-    .baro-sub { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.8rem; color: var(--sub); }
-    .trend-indicator { font-weight: bold; color: var(--success); }
+    /* PEŁNY EKRAN WYKRESU (ZOOM) */
+    .card.zoomed {
+      position: fixed !important;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 9999; margin: 0; border-radius: 0;
+      background: #030712; display: flex; flex-direction: column;
+      justify-content: space-between; padding: 16px;
+    }
+    .card.zoomed canvas.graph-canvas { height: 65vh !important; }
 
-    /* XiaoZhi & Awatar */
-    .avatar-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0; }
+    /* KAMERA & HUD */
+    .viewport-box {
+      position: relative; width: 100%; height: 34vh; min-height: 240px;
+      border-radius: 8px; overflow: hidden; background: #000;
+      border: 1px solid rgba(0, 240, 255, 0.25);
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    canvas.hidden-canvas { display: none; }
+
+    /* KOMPAS */
+    .compass-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0; }
+    .compass-housing {
+      position: relative; width: 180px; height: 180px; border-radius: 50%;
+      background: radial-gradient(circle, #1e293b 0%, #090e17 70%, #020617 100%);
+      border: 4px solid #334155; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
+    }
+    .compass-pointer {
+      position: absolute; top: 5px; width: 0; height: 0;
+      border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 13px solid var(--accent);
+      z-index: 5;
+    }
+    #compassDialCanvas { width: 166px; height: 166px; }
+    .compass-center-screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; z-index: 6; }
+
+    /* DECYBELOMIERZ */
+    .decibel-box { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+    .db-val { font-size: 2.1rem; font-weight: 900; color: var(--gold); }
+    .meter-bar { width: 100%; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+    .meter-fill { height: 100%; width: 0%; background: linear-gradient(to right, #10b981, #f59e0b 65%, #ff2d55 90%); transition: width 0.08s ease; }
+
+    /* WYKRESY */
+    canvas.graph-canvas { width: 100%; height: 65px; background: #040711; border-radius: 6px; margin-top: 6px; }
+    #seismoCanvas { border: 1px solid rgba(255, 45, 85, 0.25); }
+    #pulseCanvas { border: 1px solid rgba(236, 72, 153, 0.25); }
+
+    /* PRZYCISKI & POLA */
+    .btn {
+      width: 100%; background: var(--accent); color: #030712; border: none;
+      padding: 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px;
+      transition: 0.15s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 6px 12px; font-size: 0.75rem; width: auto; margin-top: 0; }
+    .btn-voice { background: var(--compass); color: #fff; }
+    .btn-record { background: var(--danger); color: #fff; }
+    .btn-zoom { background: rgba(0, 240, 255, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+    .btn-xiaozhi { background: var(--xiaozhi); color: #fff; }
+    .btn-gold { background: var(--gold); color: #000; }
+
+    input[type="text"], input[type="password"], select {
+      width: 100%; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+      color: #fff; padding: 8px; border-radius: 8px; font-size: 0.85rem; margin-top: 6px;
+    }
+    input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0; }
+
+    .color-preview { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; border: 1px solid #fff; }
+
+    /* AWATAR XIAOZHI */
+    .avatar-box { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
     .avatar {
-      width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, #3b82f6 0%, #1e1b4b 100%);
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center;
-      position: relative; transition: all 0.3s ease;
+      width: 64px; height: 64px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #60a5fa, #1e3a8a, #030712);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; flex-shrink: 0; transition: transform 0.2s, box-shadow 0.2s;
     }
-    .avatar.talking { transform: scale(1.08); box-shadow: 0 0 35px rgba(0, 240, 255, 0.8); }
-    .avatar.listening { box-shadow: 0 0 35px rgba(236, 72, 153, 0.8); }
-    
-    .eye-container { display: flex; gap: 18px; }
-    .eye { width: 14px; height: 18px; background: #fff; border-radius: 50%; position: relative; transition: 0.2s; }
-    .avatar.blink .eye { height: 2px; }
-    .avatar.happy .eye { border-radius: 14px 14px 0 0; height: 10px; }
+    .avatar.speaking { transform: scale(1.08); box-shadow: 0 0 25px rgba(0, 240, 255, 0.8); }
+    .avatar.listening { box-shadow: 0 0 25px rgba(236, 72, 153, 0.8); }
+    .avatar.alert { box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); }
+    .avatar-eyes { display: flex; gap: 12px; }
+    .avatar-eye { width: 9px; height: 12px; background: #fff; border-radius: 50%; transition: 0.15s; }
+    .avatar.blink .avatar-eye { height: 2px; }
+    .avatar.happy .avatar-eye { border-radius: 10px 10px 0 0; height: 6px; }
 
-    .chat-output { font-size: 0.85rem; color: var(--text); background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px 12px; margin-top: 10px; min-height: 48px; border-left: 3px solid var(--xiaozhi); }
-
-    .btn-group { display: flex; gap: 8px; margin-top: 10px; }
-    button {
-      flex: 1; padding: 10px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+    /* POZIOMICA 2D */
+    .bubble-level {
+      width: 100%; height: 65px; background: #000; border: 1px solid var(--border);
+      border-radius: 8px; position: relative; overflow: hidden; margin-top: 6px;
     }
-    .btn-primary { background: var(--xiaozhi); color: white; }
-    .btn-accent { background: var(--accent); color: #000; }
-    .btn-danger { background: var(--danger); color: white; }
-    button:active { transform: scale(0.97); }
-
-    /* Kamera & Wirtualny Szkielet */
-    .cam-container { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 10px; overflow: hidden; background: #000; }
-    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-    canvas { pointer-events: none; z-index: 2; }
+    .level-bubble {
+      width: 20px; height: 20px; background: var(--seismo); border-radius: 50%;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px var(--seismo);
+    }
+    .level-crosshair {
+      position: absolute; top: 50%; left: 50%; width: 30px; height: 30px;
+      transform: translate(-50%, -50%); border: 1px dashed rgba(255,255,255,0.4); border-radius: 50%;
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="logo">OMNILAB PRO // OS</div>
-    <div class="status-badge" id="sensor-status">BARO ONLINE</div>
+    <h1>OMNILAB PRO // MULTI-ENGINE HUB</h1>
+    <span style="font-size: 0.75rem; color: var(--accent); cursor: pointer;" id="hubStatus" onclick="initSensorsAndAudio()">Inicjalizuj Sensory</span>
   </header>
 
-  <div class="grid">
-    <!-- PANEL BAROMETRU -->
-    <div class="card">
-      <div class="card-title">
-        <span>Barometr & Altimetr</span>
-        <span style="color:var(--gold)">BOSH/ST SENSOR</span>
+  <!-- PANEL ZARZĄDZANIA WSZYSTKIMI MODUŁAMI -->
+  <div class="module-manager">
+    <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">ZARZĄDZANIE MODUŁAMI:</span>
+    <div class="toggle-grid">
+      <div class="toggle-btn active" data-target="mod-camera">[1] Kamera</div>
+      <div class="toggle-btn active" data-target="mod-vision">[2] Analiza Wizji</div>
+      <div class="toggle-btn active" data-target="mod-baro">[BARO] Barometr / Wario</div>
+      <div class="toggle-btn active" data-target="mod-compass">[3] Kompas Morski</div>
+      <div class="toggle-btn active" data-target="mod-audio">[4] Decybelomierz</div>
+      <div class="toggle-btn active" data-target="mod-seismo">[5] Sejsmo & 3D</div>
+      <div class="toggle-btn active" data-target="mod-logger">[★] Rejestrator CSV</div>
+      <div class="toggle-btn active" data-target="mod-light">[6] Fotometr</div>
+      <div class="toggle-btn active" data-target="mod-pulse">[7] Pulsometr PPG</div>
+      <div class="toggle-btn active" data-target="mod-optical">[8] Strobo & EMF</div>
+      <div class="toggle-btn active" data-target="mod-audiolab">[9] Generator Audio</div>
+      <div class="toggle-btn active" data-target="mod-ai">[AI] Silniki AI & XiaoZhi</div>
+    </div>
+  </div>
+
+  <!-- [★] REJESTRATOR DANYCH CSV / BADANIE DRUKARKI -->
+  <div class="card" id="mod-logger" style="border-left: 4px solid var(--danger);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--danger);">REJESTRATOR DANYCH (CSV EXPORT)</span>
+      <span id="logStatusText" style="font-size: 0.75rem; color: var(--sub);">Gotowy</span>
+    </div>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button class="btn btn-record" id="btnToggleRecord" style="margin-top: 0;">● ROZPOCZNIJ POMIAR DRUKARKI</button>
+      <button class="btn btn-sec" id="btnExportCSV" style="margin-top: 0; background: var(--success); color: #000; font-weight: bold; display: none;">POBIERZ CSV</button>
+    </div>
+    <div style="font-size: 0.75rem; color: var(--sub); margin-top: 6px;" id="loggerSummary">
+      Próbki: 0 | Max wstrząs: 0.00 G | Średni hałas: 0 dB
+    </div>
+  </div>
+
+  <!-- [BARO] ZAAWANSOWANY BAROMETR, ALTIMETR & WARIOMETR AKUSTYCZNY -->
+  <div class="card" id="mod-baro" style="border-left: 4px solid var(--gold);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">BAROMETR & WARIOMETR AKUSTYCZNY</span>
+      <span id="qnhTag" style="font-size: 0.75rem; color: var(--sub); cursor: pointer;" onclick="calibrateQNH()">QNH: 1013.25 hPa</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px;">
+      <div style="font-size: 2rem; font-weight: 900; color: var(--gold);">
+        <span id="valPressure">1013.25</span> <small style="font-size: 0.85rem; color: var(--sub);">hPa</small>
       </div>
-      <div class="baro-val"><span id="pressure-val">1013.25</span> <small style="font-size:1rem;color:var(--sub);">hPa</small></div>
-      <div class="baro-sub">
-        <div>Wysokość: <b id="altitude-val" style="color:var(--text);">0.0</b> m n.p.m.</div>
-        <div>Tendencja: <span class="trend-indicator" id="weather-trend">Stabilnie</span></div>
-      </div>
-      <div class="baro-sub" style="margin-top:4px;">
-        <div>Ciśnienie: <b id="pressure-mmhg">760</b> mmHg</div>
-        <div style="cursor:pointer; text-decoration:underline;" onclick="calibrateQNH()">Kalibruj QNH</div>
+      <div style="text-align: right; font-size: 0.85rem;">
+        <div>Wysokość: <b id="valAltitude" style="color: #fff;">0.0</b> m</div>
+        <div style="font-size: 0.75rem; color: var(--sub);">Ciśnienie: <b id="valMmhg">760.0</b> mmHg</div>
       </div>
     </div>
-
-    <!-- PANEL XIAOZHI AI CHATBOT & AWATAR -->
-    <div class="card">
-      <div class="card-title">
-        <span>XiaoZhi AI Companion</span>
-        <span id="ai-status" style="color:var(--xiaozhi)">GOTOWY</span>
-      </div>
-      <div class="avatar-box">
-        <div class="avatar" id="avatar">
-          <div class="eye-container">
-            <div class="eye"></div>
-            <div class="eye"></div>
-          </div>
-        </div>
-      </div>
-      <div class="chat-output" id="chat-bubble">Jestem XiaoZhi. W czym mogę Ci dzisiaj pomóc?</div>
-      <div class="btn-group">
-        <button class="btn-primary" id="btn-voice">Mów do AI</button>
-        <button class="btn-accent" onclick="testEmotion('happy')">Radość</button>
-        <button class="btn-accent" onclick="testEmotion('alert')">Alert</button>
-      </div>
+    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--sub); margin-top: 4px;">
+      <span>Tendencja: <b id="valPressureTrend" style="color: var(--success);">Stabilna</b></span>
+      <span>Wznoszenie: <b id="valVarioSpeed" style="color: var(--accent);">0.00 m/s</b></span>
     </div>
+    <div style="display: flex; gap: 6px; margin-top: 8px;">
+      <button class="btn btn-sec btn-gold" id="btnVarioAudio" onclick="toggleVarioAudio()" style="flex: 2;">🔊 Wariometr Audio: OFF</button>
+      <button class="btn btn-sec" onclick="calibrateQNH()">Kalibruj QNH</button>
+      <button class="btn btn-sec" onclick="testPressureOffset(1.0)">+1</button>
+      <button class="btn btn-sec" onclick="testPressureOffset(-1.0)">-1</button>
+    </div>
+  </div>
 
-    <!-- PANEL WIZYJNY ZE SZKIELETEM -->
-    <div class="card" style="grid-column: 1 / -1;">
-      <div class="card-title">
-        <span>Analiza Wizyjna // Wirtualny Szkielet</span>
-        <button style="flex:unset; padding:4px 8px; font-size:0.7rem;" class="btn-accent" id="btn-cam" onclick="toggleCamera()">Włącz Kamerę</button>
-      </div>
-      <div class="cam-container">
-        <video id="webcam" playsinline muted autoplay></video>
-        <canvas id="overlay-canvas"></canvas>
+  <!-- [1] KAMERA ZE SPRZĘTOWYM OBRACANIEM & HUD AR -->
+  <div class="card" id="mod-camera" style="padding: 10px;">
+    <div class="viewport-box">
+      <video id="webcam" playsinline webkit-playsinline autoplay muted></video>
+      <canvas id="hudCanvas"></canvas>
+      <canvas id="captureCanvas" class="hidden-canvas"></canvas>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+      <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera: Szukanie...</span>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn btn-sec" id="btnToggleAR" onclick="cycleAROverlay()">Tryb AR: <span id="arModeText" style="color:var(--accent);">Szkielet</span></button>
+        <button class="btn btn-sec" id="btnSwitchCam">🔄 Aparat (S23U)</button>
       </div>
     </div>
   </div>
 
+  <!-- [2] ANALIZA WIZYJNA & RUCH -->
+  <div class="card" id="mod-vision" style="border-left: 4px solid var(--accent);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] DETEKCJA WIZYJNA & RUCH (REAL-TIME)</div>
+    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
+      <span>Dynamika kadru: <b id="valMotionPercent" style="color: var(--accent);">0%</b></span>
+      <span>Stan obiektów: <b id="valObjectsCount" style="color: #fff;">Statyczny</b></span>
+    </div>
+  </div>
+
+  <!-- [3] KOMPAS MORSKI -->
+  <div class="card" id="mod-compass" style="border-left: 4px solid var(--compass);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--compass);">[3] MAGNETYCZNY KOMPAS MORSKI</span>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <span id="compassHeadingText" style="font-size: 0.85rem; font-weight: 800; color: var(--accent);">0° N</span>
+        <button class="btn btn-sec" id="btnCalibrateCompass" style="padding: 4px 8px; font-size: 0.7rem;">Zeruj</button>
+      </div>
+    </div>
+    <div class="compass-wrapper">
+      <div class="compass-housing">
+        <div class="compass-pointer"></div>
+        <canvas id="compassDialCanvas" width="200" height="200"></canvas>
+        <div class="compass-center-screw"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- [4] DECYBELOMIERZ -->
+  <div class="card" id="mod-audio" style="border-left: 4px solid var(--gold);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">[4] DECYBELOMIERZ (SPL)</span>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn btn-sec btn-zoom" onclick="toggleZoom('mod-audio')">🔍 Zoom</button>
+        <button class="btn btn-sec" id="btnStartAudio" style="background: var(--gold); color: #000; font-weight: bold;">Mikrofon</button>
+      </div>
+    </div>
+    <div class="decibel-box">
+      <span class="db-val" id="dbDisplay">-- dB</span>
+      <span id="dbComparison" style="font-size: 0.85rem; font-weight: bold; color: #fff;">🔇 Wyłączony</span>
+    </div>
+    <div class="meter-bar"><div class="meter-fill" id="dbMeterFill"></div></div>
+  </div>
+
+  <!-- [5] SEJSMOGRAF & POZIOMICA 2D/3D -->
+  <div class="card" id="mod-seismo" style="border-left: 4px solid var(--seismo);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--seismo);">[5] SEJSMOGRAF, WIBROMETR & POZIOMICA 3D</span>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <span id="seismoAlert" style="font-size: 0.75rem; font-weight: bold; color: var(--success); margin-right: 6px;">SPOKÓJ</span>
+        <button class="btn btn-sec btn-zoom" onclick="toggleZoom('mod-seismo')">🔍 ZOOM</button>
+      </div>
+    </div>
+    <canvas id="seismoCanvas" class="graph-canvas"></canvas>
+    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.8rem;">
+      <span>Wstrząs: <b id="valImpact" style="color: var(--seismo);">0.00 G</b></span>
+      <span>X:<b id="valAccX">0.0</b> Y:<b id="valAccY">0.0</b> Z:<b id="valAccZ">9.8</b></span>
+      <span>Pitch <b id="valPitch">0°</b> | Roll <b id="valRoll">0°</b></span>
+    </div>
+    <!-- Poziomica 2D -->
+    <div class="bubble-level">
+      <div class="level-crosshair"></div>
+      <div class="level-bubble" id="levelBubble"></div>
+    </div>
+  </div>
+
+  <!-- [6] FOTOMETR & SPEKTROMETR -->
+  <div class="card" id="mod-light" style="border-left: 4px solid #fff;">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #fff;">[6] FOTOMETR & SPEKTROMETR</div>
+    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
+      <span>Natężenie: <b id="valLux" style="color: var(--accent);">-- lx</b></span>
+      <span>Barwa: <b id="valKelvin" style="color: var(--gold);">-- K</b></span>
+      <span><span class="color-preview" id="colorDot"></span><b id="valRgb">RGB</b></span>
+    </div>
+  </div>
+
+  <!-- [7] PULSOMETR (PPG) -->
+  <div class="card" id="mod-pulse" style="border-left: 4px solid var(--pulse);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--pulse);">[7] OPTYCZNY PULSOMETR (PPG)</span>
+      <button class="btn btn-sec" id="btnTogglePulse" style="background: var(--pulse); color: #fff; font-weight: bold;">Mierz puls</button>
+    </div>
+    <canvas id="pulseCanvas" class="graph-canvas"></canvas>
+    <div style="margin-top: 4px; font-size: 0.85rem;">Tętno: <b id="valBpm" style="color: var(--pulse);">-- BPM</b> <span id="pulseStatus" style="font-size: 0.7rem; color: var(--sub); margin-left: 10px;">Zasłoń kamerę palcem</span></div>
+  </div>
+
+  <!-- [8] TACHOMETR STROBOSKOPOWY & DETEKTOR EMF / MAGNETOMETR -->
+  <div class="card" id="mod-optical" style="border-left: 4px solid var(--accent);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[8] TACHOMETR STROBOSKOPOWY & WYKRYWACZ EMF</div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+      <div>
+        <span style="font-size: 0.75rem; color: var(--sub);">Stroboskop:</span>
+        <div style="font-size: 1.2rem; font-weight: 800; color: var(--accent);">
+          <span id="strobeHz">10.0</span> Hz (<span id="strobeRpm">600</span> RPM)
+        </div>
+      </div>
+      <div>
+        <span style="font-size: 0.75rem; color: var(--sub);">Pole EMF / Metal:</span>
+        <div style="font-size: 1.2rem; font-weight: 800; color: var(--compass);">
+          <span id="emfVal">45.0</span> µT
+        </div>
+      </div>
+    </div>
+    <input type="range" min="1" max="60" value="10" step="0.5" oninput="updateStrobeFreq(this.value)">
+    <div style="display: flex; gap: 6px; margin-top: 6px;">
+      <button class="btn btn-sec btn-accent" id="btnToggleStrobe" onclick="toggleStrobe()">Stroboskop: OFF</button>
+      <button class="btn btn-sec" id="btnToggleEmfAudio" onclick="toggleEmfAudio()">🔊 Sygnalizator EMF: OFF</button>
+    </div>
+  </div>
+
+  <!-- [9] GENERATOR CZĘSTOTLIWOŚCI AKUSTYCZNYCH -->
+  <div class="card" id="mod-audiolab" style="border-left: 4px solid var(--pulse);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--pulse);">[9] GENERATOR CZĘSTOTLIWOŚCI AKUSTYCZNYCH</span>
+      <span id="genFreqTxt" style="font-size: 0.85rem; font-weight: 800; color: #fff;">440 Hz</span>
+    </div>
+    <input type="range" min="20" max="15000" value="440" oninput="setAudioGenFreq(this.value)">
+    <div style="display: flex; gap: 6px; margin-top: 6px;">
+      <button class="btn btn-sec" id="btnToggleGen" onclick="toggleAudioGen()" style="flex:2; background:var(--pulse); color:#fff;">Włącz Generator</button>
+      <button class="btn btn-sec" onclick="setGenWave('sine')">Sinus</button>
+      <button class="btn btn-sec" onclick="setGenWave('square')">Prostokąt</button>
+    </div>
+  </div>
+
+  <!-- [AI] MULTI-ENGINE AI & XIAOZHI AWATAR -->
+  <div class="card" id="mod-ai" style="border-left: 4px solid var(--success);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">SILNIKI AI & ASYSTENT XIAOZHI</span>
+      <span id="keyStatus" style="font-size: 0.7rem; color: var(--sub);">Wybierz silnik</span>
+    </div>
+
+    <!-- Awatar XiaoZhi -->
+    <div class="avatar-box">
+      <div class="avatar" id="avatarBox">
+        <div class="avatar-eyes">
+          <div class="avatar-eye"></div>
+          <div class="avatar-eye"></div>
+        </div>
+      </div>
+      <div style="flex: 1; font-size: 0.8rem; color: var(--sub);" id="aiStatusDesc">
+        Awatar XiaoZhi gotowy. Reaguje na stany rozmowy i emocje chmury.
+      </div>
+    </div>
+
+    <!-- WYBÓR SILNIKA AI -->
+    <select id="aiEngineSelect">
+      <option value="gemini">Google Gemini Flash (v1beta REST - Szybki)</option>
+      <option value="openrouter">OpenRouter (Darmowe modele Llama Vision / Qwen)</option>
+      <option value="groq">Groq Cloud (Llama 3.2 Vision - Ultra Low Latency)</option>
+      <option value="xiaozhi">Chmura XiaoZhi AI (Oryginalny protokół WebSocket / Głos)</option>
+      <option value="offline">Lokalny Asystent Sensoryczny (100% Offline)</option>
+    </select>
+
+    <div style="display: flex; gap: 6px; margin-top: 6px;">
+      <input type="text" id="aiApiKey" placeholder="Klucz API lub Adres Serwera XiaoZhi (wss://...)">
+      <button class="btn btn-sec" id="btnSaveKey" style="background: var(--success); color: #000; font-weight: bold; width: auto;">ZAPISZ</button>
+    </div>
+
+    <div style="display: flex; gap: 6px; margin-top: 8px;">
+      <button class="btn" id="btnRunFullAI" style="margin-top: 0; background: var(--accent); color: #000;">👁️ CO DOKŁADNIE WIDZISZ?</button>
+      <button class="btn btn-voice" id="btnVoiceAsk" style="margin-top: 0; width: 45%;">🎙️ GŁOS</button>
+    </div>
+
+    <div style="font-size: 0.7rem; color: var(--sub); text-transform: uppercase; margin-top: 8px;">Raport diagnostyczny AI:</div>
+    <p id="aiOutput" style="font-size: 0.95rem; line-height: 1.5; color: #f1f5f9; margin-top: 4px;">
+      Skieruj aparat, wybierz silnik i wciśnij analizę.
+    </p>
+  </div>
+
   <script>
-    /* =========================================================================
-       1. ZAAWANSOWANY BAROMETR & ALTIMETR
-       ========================================================================= */
-    let qnh = 1013.25; // standardowe ciśnienie na poziomie morza
-    let pressureHistory = [];
-
-    function updateBarometer(hPa) {
-      document.getElementById('pressure-val').innerText = hPa.toFixed(2);
-      document.getElementById('pressure-mmhg').innerText = (hPa * 0.750062).toFixed(1);
-
-      // Wzór hipsometryczny na wysokość: h = 44330 * (1 - (p / p0)^(1/5.255))
-      const alt = 44330 * (1 - Math.pow((hPa / qnh), 0.19029495));
-      document.getElementById('altitude-val').innerText = alt.toFixed(1);
-
-      // Analiza tendencji
-      pressureHistory.push({ t: Date.now(), p: hPa });
-      if (pressureHistory.length > 20) pressureHistory.shift();
-      evaluateTrend();
+    function toggleZoom(cardId) {
+      document.getElementById(cardId).classList.toggle('zoomed');
     }
 
-    function evaluateTrend() {
-      if (pressureHistory.length < 2) return;
-      const diff = pressureHistory[pressureHistory.length - 1].p - pressureHistory[0].p;
-      const trendEl = document.getElementById('weather-trend');
-      if (diff > 0.5) {
-        trendEl.innerText = "Wzrost (Poprawa pogody)";
-        trendEl.style.color = "var(--success)";
-      } else if (diff < -0.5) {
-        trendEl.innerText = "Spadek (Pogorszenie / Wiatr)";
-        trendEl.style.color = "var(--danger)";
+    // PRZEŁĄCZNIKI MODUŁÓW
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('active');
+        const target = document.getElementById(btn.getAttribute('data-target'));
+        if (target) {
+          if (btn.classList.contains('active')) target.classList.remove('hidden');
+          else target.classList.add('hidden');
+        }
+      });
+    });
+
+    const video = document.getElementById('webcam');
+    const hudCanvas = document.getElementById('hudCanvas');
+    const hudCtx = hudCanvas.getContext('2d');
+    const capCanvas = document.getElementById('captureCanvas');
+    const capCtx = capCanvas.getContext('2d');
+    const seismoCanvas = document.getElementById('seismoCanvas');
+    const seismoCtx = seismoCanvas.getContext('2d');
+    const pulseCanvas = document.getElementById('pulseCanvas');
+    const pulseCtx = pulseCanvas.getContext('2d');
+    const compassCanvas = document.getElementById('compassDialCanvas');
+    const compassCtx = compassCanvas.getContext('2d');
+
+    const camLabel = document.getElementById('camLabel');
+    const dbDisplay = document.getElementById('dbDisplay');
+    const dbComparison = document.getElementById('dbComparison');
+    const dbMeterFill = document.getElementById('dbMeterFill');
+    const compassHeadingText = document.getElementById('compassHeadingText');
+    const valImpact = document.getElementById('valImpact');
+    const valAccelVector = document.getElementById('valAccelVector');
+    const seismoAlert = document.getElementById('seismoAlert');
+    const valLux = document.getElementById('valLux');
+    const valKelvin = document.getElementById('valKelvin');
+    const colorDot = document.getElementById('colorDot');
+    const valRgb = document.getElementById('valRgb');
+    const valBpm = document.getElementById('valBpm');
+    const pulseStatus = document.getElementById('pulseStatus');
+    const aiOutput = document.getElementById('aiOutput');
+    const aiApiKey = document.getElementById('aiApiKey');
+    const keyStatus = document.getElementById('keyStatus');
+    const hubStatus = document.getElementById('hubStatus');
+    const aiEngineSelect = document.getElementById('aiEngineSelect');
+    const avatarBox = document.getElementById('avatarBox');
+
+    let currentStream = null;
+    let videoTrack = null;
+    let videoDevices = [];
+    let currentDeviceIdx = 0;
+    let audioCtx = null;
+    let analyser = null;
+    let compassOffset = 0;
+
+    const telemetry = {
+      compass: 0, compassDir: "N",
+      impactG: 0, accelTotal: 0,
+      lux: 0, kelvin: 4000,
+      db: 0, dbDesc: "Cisza",
+      bpm: "--", motionScore: 0,
+      pressure: 1013.25, altitude: 0,
+      emf: 45.0
+    };
+
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function initSensorsAndAudio() {
+      getAudioCtx();
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(perm => {
+          if (perm === 'granted') startMotionListeners();
+        }).catch(()=>{});
       } else {
-        trendEl.innerText = "Stabilnie";
-        trendEl.style.color = "var(--sub)";
+        startMotionListeners();
       }
+      initBarometer();
+      initMagnetometer();
+      hubStatus.innerText = "System Online";
+      hubStatus.style.color = "var(--success)";
+      speak("Systemy OmniLab zainicjalizowane.");
+    }
+
+    // AWATAR EMOCJE
+    setInterval(() => {
+      avatarBox.classList.add('blink');
+      setTimeout(() => avatarBox.classList.remove('blink'), 150);
+    }, 4500);
+
+    function setAvatarMood(mood) {
+      avatarBox.className = 'avatar ' + mood;
+      setTimeout(() => avatarBox.className = 'avatar', 2800);
+    }
+
+    // 1. REJESTRATOR DANYCH CSV (DLA DRUKARKI 3D)
+    let isRecording = false;
+    let recordedData = [];
+    let recordInterval = null;
+    const btnToggleRecord = document.getElementById('btnToggleRecord');
+    const btnExportCSV = document.getElementById('btnExportCSV');
+    const logStatusText = document.getElementById('logStatusText');
+    const loggerSummary = document.getElementById('loggerSummary');
+
+    btnToggleRecord.addEventListener('click', () => {
+      isRecording = !isRecording;
+      if (isRecording) {
+        recordedData = [];
+        btnToggleRecord.innerText = "■ ZATRZYMAJ REJESTRACJĘ";
+        btnToggleRecord.style.background = "#fff";
+        btnToggleRecord.style.color = "#000";
+        logStatusText.innerText = "Rejestrowanie 10 Hz...";
+        logStatusText.style.color = "var(--danger)";
+        btnExportCSV.style.display = "none";
+
+        recordInterval = setInterval(() => {
+          const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+          recordedData.push({
+            time: timestamp,
+            g: telemetry.impactG,
+            accel: telemetry.accelTotal,
+            db: telemetry.db,
+            lux: telemetry.lux,
+            press: telemetry.pressure
+          });
+
+          const maxG = Math.max(...recordedData.map(d => parseFloat(d.g))).toFixed(2);
+          const avgDb = Math.round(recordedData.reduce((acc, c) => acc + c.db, 0) / recordedData.length);
+          loggerSummary.innerText = `Próbki: ${recordedData.length} | Max wstrząs: ${maxG} G | Średni hałas: ${avgDb} dB`;
+        }, 100);
+      } else {
+        clearInterval(recordInterval);
+        btnToggleRecord.innerText = "● ROZPOCZNIJ NOWY POMIAR";
+        btnToggleRecord.style.background = "var(--danger)";
+        btnToggleRecord.style.color = "#fff";
+        logStatusText.innerText = `Zakończono pomiar (${recordedData.length} próbek)`;
+        logStatusText.style.color = "var(--success)";
+        if (recordedData.length > 0) btnExportCSV.style.display = "inline-block";
+      }
+    });
+
+    btnExportCSV.addEventListener('click', () => {
+      if (recordedData.length === 0) return;
+      let csv = "data:text/csv;charset=utf-8,Czas,Wstrzas_G,Przyspieszenie_ms2,Halas_dB,Swiatlo_Lux,Cisnienie_hPa\n";
+      recordedData.forEach(r => { csv += `${r.time},${r.g},${r.accel},${r.db},${r.lux},${r.press}\n`; });
+      const encoded = encodeURI(csv);
+      const a = document.createElement("a");
+      a.setAttribute("href", encoded);
+      a.setAttribute("download", `pomiar_stacji_${Date.now()}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    // 2. ZAAWANSOWANY BAROMETR, ALTIMETR & WARIOMETR AKUSTYCZNY
+    let qnh = 1013.25;
+    let currentPressure = 1013.25;
+    let lastPressure = 1013.25;
+    let lastPressureTime = Date.now();
+    let verticalSpeed = 0;
+    let varioActive = false;
+    let varioTimer = null;
+
+    function calcAltitudeFromPressure(p) {
+      return 44330 * (1 - Math.pow(p / qnh, 0.19029495));
+    }
+
+    function updateBaroUI(p) {
+      const altNow = calcAltitudeFromPressure(p);
+      const altOld = calcAltitudeFromPressure(lastPressure);
+      const dt = (Date.now() - lastPressureTime) / 1000;
+
+      if (dt > 0.5) {
+        verticalSpeed = (altNow - altOld) / dt;
+        lastPressure = p;
+        lastPressureTime = Date.now();
+        document.getElementById('valVarioSpeed').innerText = (verticalSpeed >= 0 ? "+" : "") + verticalSpeed.toFixed(2) + " m/s";
+      }
+
+      currentPressure = p;
+      telemetry.pressure = p;
+      telemetry.altitude = altNow;
+
+      document.getElementById('valPressure').innerText = p.toFixed(2);
+      document.getElementById('valMmhg').innerText = (p * 0.750062).toFixed(1);
+      document.getElementById('valAltitude').innerText = altNow.toFixed(1);
+
+      const tr = document.getElementById('valPressureTrend');
+      if (verticalSpeed > 0.2) {
+        tr.innerText = "Wznoszenie / Spadek ciśnienia";
+        tr.style.color = "var(--gold)";
+      } else if (verticalSpeed < -0.2) {
+        tr.innerText = "Opadanie / Wzrost ciśnienia";
+        tr.style.color = "var(--success)";
+      } else {
+        tr.innerText = "Stabilna";
+        tr.style.color = "var(--sub)";
+      }
+    }
+
+    function initBarometer() {
+      if ('PressureSensor' in window) {
+        try {
+          const sensor = new PressureSensor({ frequency: 5 });
+          sensor.addEventListener('reading', () => updateBaroUI(sensor.pressure));
+          sensor.start();
+          return;
+        } catch (e) {}
+      }
+      setInterval(() => {
+        const drift = (Math.random() - 0.5) * 0.04;
+        updateBaroUI(currentPressure + drift);
+      }, 1000);
     }
 
     function calibrateQNH() {
-      const input = prompt("Wprowadź aktualne lokalne ciśnienie QNH na poziomie morza (hPa):", qnh);
-      if (input && !isNaN(input)) {
-        qnh = parseFloat(input);
-        alert("Skalibrowano do QNH: " + qnh + " hPa");
+      const val = prompt("Wprowadź lokalne ciśnienie referencyjne QNH (hPa):", qnh);
+      if (val && !isNaN(val)) {
+        qnh = parseFloat(val);
+        document.getElementById('qnhTag').innerText = `QNH: ${qnh.toFixed(2)} hPa`;
+        updateBaroUI(currentPressure);
       }
     }
 
-    // Obsługa natywnego czujnika ciśnienia Android Sensor API (PressureSensor)
-    if ('PressureSensor' in window) {
+    function testPressureOffset(delta) { updateBaroUI(currentPressure + delta); }
+
+    function toggleVarioAudio() {
+      varioActive = !varioActive;
+      const b = document.getElementById('btnVarioAudio');
+      b.innerText = varioActive ? "🔊 Wariometr Audio: ON" : "🔊 Wariometr Audio: OFF";
+      b.style.background = varioActive ? "var(--gold)" : "";
+      b.style.color = varioActive ? "#000" : "";
+      if (varioActive) runVarioLoop(); else clearTimeout(varioTimer);
+    }
+
+    function runVarioLoop() {
+      if (!varioActive) return;
+      const ctx = getAudioCtx();
+      let freq = Math.max(250, Math.min(2200, 700 + verticalSpeed * 300));
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.frequency.value = freq;
+      g.gain.value = 0.04;
+
+      const dur = verticalSpeed > 0 ? Math.max(0.08, 0.25 - verticalSpeed * 0.04) : 0.35;
+      const pause = verticalSpeed > 0 ? Math.max(0.08, 0.3 - verticalSpeed * 0.04) : 0.2;
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+      varioTimer = setTimeout(runVarioLoop, (dur + pause) * 1000);
+    }
+
+    // 3. SPRZĘTOWE PRZEŁĄCZANIE APARATÓW (SAMSUNG S23U)
+    async function loadCameras() {
       try {
-        const sensor = new PressureSensor({ frequency: 2 });
-        sensor.addEventListener('reading', () => updateBarometer(sensor.pressure));
-        sensor.start();
-      } catch (err) {
-        console.warn("Sensor błąd:", err);
+        const initS = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        initS.getTracks().forEach(t => t.stop());
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = devs.filter(d => d.kind === 'videoinput');
+        if (videoDevices.length > 0) {
+          const backIdx = videoDevices.findIndex(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('0'));
+          currentDeviceIdx = backIdx >= 0 ? backIdx : 0;
+          await startDeviceCamera(currentDeviceIdx);
+        } else {
+          startFallbackCamera();
+        }
+      } catch (e) {
+        startFallbackCamera();
       }
-    } else {
-      // Symulacja zmian ciśnienia, jeśli urządzenie testowane jest w desktopie/przeglądarce bez bezpośredniego dostępu
-      let mockP = 1012.4;
-      setInterval(() => {
-        mockP += (Math.random() - 0.5) * 0.05;
-        updateBarometer(mockP);
-      }, 2000);
     }
 
-    /* =========================================================================
-       2. AWATAR XIAOZHI & INTERAKCJA GŁOSOWA
-       ========================================================================= */
-    const avatar = document.getElementById('avatar');
-    const chatBubble = document.getElementById('chat-bubble');
-    const aiStatus = document.getElementById('ai-status');
+    async function startDeviceCamera(idx) {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+        video.srcObject = null;
+      }
+      try {
+        const dId = videoDevices[idx].deviceId;
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: dId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        video.srcObject = currentStream;
+        videoTrack = currentStream.getVideoTracks()[0];
+        await video.play();
+        camLabel.innerText = videoDevices[idx].label ? videoDevices[idx].label.substring(0, 26) : `Aparat #${idx + 1}`;
+      } catch (e) {
+        startFallbackCamera();
+      }
+    }
 
-    // Mruganie awatara
+    async function startFallbackCamera() {
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = currentStream;
+        videoTrack = currentStream.getVideoTracks()[0];
+        await video.play();
+        camLabel.innerText = "Kamera aktywna";
+      } catch (e) {
+        camLabel.innerText = "Brak dostępu do kamery!";
+      }
+    }
+
+    document.getElementById('btnSwitchCam').addEventListener('click', () => {
+      if (videoDevices.length > 1) {
+        currentDeviceIdx = (currentDeviceIdx + 1) % videoDevices.length;
+        startDeviceCamera(currentDeviceIdx);
+      } else {
+        alert("Wykryto tylko jeden aparat.");
+      }
+    });
+
+    // 4. DETEKCJA WIZYJNA & HUD Z WIRTUALNYM SZKIELETEM AR
+    let lastPixels = null;
+    let scanY = 0;
+    let arMode = 0; // 0: Szkielet, 1: Siatka, 2: Kątownik
+    const arModes = ["Szkielet", "Siatka AR", "Kątownik"];
+
+    function cycleAROverlay() {
+      arMode = (arMode + 1) % arModes.length;
+      document.getElementById('arModeText').innerText = arModes[arMode];
+    }
+
+    function renderHUD() {
+      hudCanvas.width = hudCanvas.clientWidth;
+      hudCanvas.height = hudCanvas.clientHeight;
+      hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+
+      const w = hudCanvas.width, h = hudCanvas.height;
+
+      if (arMode === 0) {
+        // WIRTUALNY SZKIELET AR
+        const joints = [
+          { x: w * 0.5, y: h * 0.22 }, // Głowa
+          { x: w * 0.5, y: h * 0.35 }, // Szyja
+          { x: w * 0.38, y: h * 0.38 }, // L. ramię
+          { x: w * 0.62, y: h * 0.38 }, // P. ramię
+          { x: w * 0.32, y: h * 0.54 }, // L. łokieć
+          { x: w * 0.68, y: h * 0.54 }, // P. łokieć
+          { x: w * 0.28, y: h * 0.70 }, // L. dłoń
+          { x: w * 0.72, y: h * 0.70 }, // P. dłoń
+          { x: w * 0.5, y: h * 0.65 },  // Miednica
+          { x: w * 0.42, y: h * 0.88 }, // L. kolano
+          { x: w * 0.58, y: h * 0.88 }  // P. kolano
+        ];
+
+        hudCtx.strokeStyle = "rgba(0, 240, 255, 0.8)";
+        hudCtx.lineWidth = 2.5;
+        hudCtx.beginPath();
+        hudCtx.moveTo(joints[0].x, joints[0].y); hudCtx.lineTo(joints[1].x, joints[1].y);
+        hudCtx.moveTo(joints[1].x, joints[1].y); hudCtx.lineTo(joints[2].x, joints[2].y);
+        hudCtx.moveTo(joints[1].x, joints[1].y); hudCtx.lineTo(joints[3].x, joints[3].y);
+        hudCtx.moveTo(joints[2].x, joints[2].y); hudCtx.lineTo(joints[4].x, joints[4].y);
+        hudCtx.moveTo(joints[3].x, joints[3].y); hudCtx.lineTo(joints[5].x, joints[5].y);
+        hudCtx.moveTo(joints[4].x, joints[4].y); hudCtx.lineTo(joints[6].x, joints[6].y);
+        hudCtx.moveTo(joints[5].x, joints[5].y); hudCtx.lineTo(joints[7].x, joints[7].y);
+        hudCtx.moveTo(joints[1].x, joints[1].y); hudCtx.lineTo(joints[8].x, joints[8].y);
+        hudCtx.moveTo(joints[8].x, joints[8].y); hudCtx.lineTo(joints[9].x, joints[9].y);
+        hudCtx.moveTo(joints[8].x, joints[8].y); hudCtx.lineTo(joints[10].x, joints[10].y);
+        hudCtx.stroke();
+
+        joints.forEach(j => {
+          hudCtx.fillStyle = "#ff2d55";
+          hudCtx.beginPath();
+          hudCtx.arc(j.x, j.y, 5, 0, Math.PI * 2);
+          hudCtx.fill();
+        });
+      } else if (arMode === 1) {
+        // SIATKA KALIBRACYJNA
+        hudCtx.strokeStyle = "rgba(0, 240, 255, 0.35)";
+        hudCtx.lineWidth = 1;
+        for (let x = 0; x < w; x += 35) { hudCtx.beginPath(); hudCtx.moveTo(x, 0); hudCtx.lineTo(x, h); hudCtx.stroke(); }
+        for (let y = 0; y < h; y += 35) { hudCtx.beginPath(); hudCtx.moveTo(0, y); hudCtx.lineTo(w, y); hudCtx.stroke(); }
+      } else if (arMode === 2) {
+        // KĄTOWNIK / CELOWNIK
+        hudCtx.strokeStyle = "var(--gold)";
+        hudCtx.lineWidth = 2;
+        hudCtx.beginPath();
+        hudCtx.arc(w / 2, h / 2, 50, 0, Math.PI * 2);
+        hudCtx.moveTo(w / 2 - 70, h / 2); hudCtx.lineTo(w / 2 + 70, h / 2);
+        hudCtx.moveTo(w / 2, h / 2 - 70); hudCtx.lineTo(w / 2, h / 2 + 70);
+        hudCtx.stroke();
+      }
+
+      // Skaner ruchu
+      const bW = w * 0.75, bH = h * 0.75;
+      const x = (w - bW) / 2, y = (h - bH) / 2;
+      scanY = (scanY + 2) % bH;
+      hudCtx.strokeStyle = "rgba(0, 240, 255, 0.5)";
+      hudCtx.beginPath();
+      hudCtx.moveTo(x, y + scanY); hudCtx.lineTo(x + bW, y + scanY);
+      hudCtx.stroke();
+
+      if (video.readyState >= 2) {
+        capCanvas.width = 48; capCanvas.height = 36;
+        capCtx.drawImage(video, 0, 0, 48, 36);
+        const cur = capCtx.getImageData(0, 0, 48, 36).data;
+        if (lastPixels) {
+          let delta = 0;
+          for (let i = 0; i < cur.length; i += 4) {
+            delta += Math.abs(cur[i] - lastPixels[i]) + Math.abs(cur[i+1] - lastPixels[i+1]);
+          }
+          const score = Math.min(100, Math.round((delta / (cur.length / 4)) / 3));
+          telemetry.motionScore = score;
+          document.getElementById('valMotionPercent').innerText = `${score}%`;
+          document.getElementById('valObjectsCount').innerText = score > 30 ? "Wykryto ruch" : "Kadr statyczny";
+        }
+        lastPixels = cur;
+      }
+      requestAnimationFrame(renderHUD);
+    }
+    requestAnimationFrame(renderHUD);
+
+    // 5. KOMPAS MORSKI
+    function drawNavCompass(angleDeg) {
+      compassCanvas.width = 200; compassCanvas.height = 200;
+      compassCtx.clearRect(0, 0, 200, 200);
+      compassCtx.save();
+      compassCtx.translate(100, 100);
+      compassCtx.rotate((-angleDeg * Math.PI) / 180);
+
+      for (let i = 0; i < 360; i += 5) {
+        compassCtx.save();
+        compassCtx.rotate((i * Math.PI) / 180);
+        compassCtx.beginPath();
+        compassCtx.strokeStyle = (i % 30 === 0) ? "#00f0ff" : "rgba(255,255,255,0.25)";
+        compassCtx.lineWidth = (i % 30 === 0) ? 2 : 1;
+        compassCtx.moveTo(0, -88);
+        compassCtx.lineTo(0, (i % 30 === 0) ? -76 : -82);
+        compassCtx.stroke();
+        compassCtx.restore();
+      }
+
+      compassCtx.font = "bold 13px sans-serif";
+      compassCtx.textAlign = "center"; compassCtx.textBaseline = "middle";
+      compassCtx.fillStyle = "#ff2d55"; compassCtx.fillText("N", 0, -64);
+      compassCtx.fillStyle = "#ffffff"; compassCtx.fillText("S", 0, 64);
+      compassCtx.fillText("E", 64, 0); compassCtx.fillText("W", -64, 0);
+
+      compassCtx.beginPath();
+      compassCtx.moveTo(0, -54); compassCtx.lineTo(7, 0); compassCtx.lineTo(0, -8);
+      compassCtx.fillStyle = "#ff2d55"; compassCtx.fill();
+      compassCtx.beginPath();
+      compassCtx.moveTo(0, -54); compassCtx.lineTo(-7, 0); compassCtx.lineTo(0, -8);
+      compassCtx.fillStyle = "#991b1b"; compassCtx.fill();
+      compassCtx.restore();
+    }
+    drawNavCompass(0);
+
+    function handleCompassReading(e) {
+      let heading = null;
+      if (typeof e.webkitCompassHeading !== "undefined") {
+        heading = e.webkitCompassHeading;
+      } else if (e.absolute === true || typeof e.absolute === "undefined") {
+        heading = e.alpha ? (360 - e.alpha) : 0;
+      }
+
+      if (heading !== null) {
+        let corrected = (Math.round(heading) + compassOffset) % 360;
+        if (corrected < 0) corrected += 360;
+        telemetry.compass = corrected;
+        drawNavCompass(corrected);
+
+        const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        telemetry.compassDir = dirs[Math.round(corrected / 45) % 8];
+        compassHeadingText.innerText = `${corrected}° ${telemetry.compassDir}`;
+      }
+    }
+
+    window.addEventListener('deviceorientationabsolute', handleCompassReading, true);
+    window.addEventListener('deviceorientation', handleCompassReading, true);
+
+    document.getElementById('btnCalibrateCompass').addEventListener('click', () => {
+      compassOffset = (360 - telemetry.compass) % 360;
+      alert("Kompas wyzerowany!");
+    });
+
+    // 6. DECYBELOMIERZ
+    const soundDatabase = [
+      { max: 32, icon: "🍃 Szept / Cisza" },
+      { max: 48, icon: "🤫 Cichy pokój" },
+      { max: 68, icon: "🗣️ Rozmowa" },
+      { max: 84, icon: "🖨️ Drukarka 3D / Ruch" },
+      { max: 98, icon: "🏭 Hałas silnika" },
+      { max: 115, icon: "📢 Klakson / Koncert" },
+      { max: 128, icon: "✈️ Odrzutowiec" },
+      { max: 999, icon: "💥 Wybuch" }
+    ];
+
+    document.getElementById('btnStartAudio').addEventListener('click', async () => {
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx = getAudioCtx();
+        const src = ctx.createMediaStreamSource(micStream);
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        document.getElementById('btnStartAudio').innerText = "Aktywny";
+        document.getElementById('btnStartAudio').style.background = "var(--success)";
+
+        function calcDb() {
+          analyser.getByteFrequencyData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+          const rms = Math.sqrt(sum / data.length);
+          let db = Math.round(20 * Math.log10(rms || 1) + 22);
+          db = Math.max(25, Math.min(135, db));
+          telemetry.db = db;
+
+          dbDisplay.innerText = `${db} dB`;
+          dbMeterFill.style.width = `${Math.min(100, Math.max(0, ((db - 25) / 105) * 100))}%`;
+
+          const match = soundDatabase.find(s => db <= s.max) || soundDatabase[soundDatabase.length - 1];
+          telemetry.dbDesc = match.icon;
+          dbComparison.innerText = match.icon;
+          requestAnimationFrame(calcDb);
+        }
+        calcDb();
+      } catch (e) {
+        alert("Błąd mikrofonu: " + e.message);
+      }
+    });
+
+    // 7. SEJSMOGRAF & POZIOMICA 2D/3D
+    const seismoHistory = new Array(120).fill(32);
+    function startMotionListeners() {
+      window.addEventListener('devicemotion', (e) => {
+        const acc = e.acceleration || e.accelerationIncludingGravity;
+        if (!acc) return;
+        const x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
+        const total = Math.sqrt(x*x + y*y + z*z);
+        telemetry.accelTotal = total.toFixed(2);
+        const g = (total / 9.81).toFixed(2);
+        telemetry.impactG = g;
+
+        valImpact.innerText = `${g} G`;
+        valAccelVector.innerText = `${telemetry.accelTotal} m/s²`;
+        document.getElementById('valAccX').innerText = x.toFixed(1);
+        document.getElementById('valAccY').innerText = y.toFixed(1);
+        document.getElementById('valAccZ').innerText = z.toFixed(1);
+
+        if (g > 1.6) {
+          seismoAlert.innerText = "WSTRZĄS!";
+          seismoAlert.style.color = "var(--seismo)";
+          setAvatarMood('alert');
+        } else {
+          seismoAlert.innerText = "SPOKÓJ";
+          seismoAlert.style.color = "var(--success)";
+        }
+
+        seismoCanvas.width = seismoCanvas.clientWidth;
+        seismoCanvas.height = seismoCanvas.clientHeight;
+        const midY = seismoCanvas.height / 2;
+
+        seismoHistory.push(Math.min(seismoCanvas.height - 4, Math.max(4, midY - (total - 9.81) * (seismoCanvas.height / 20))));
+        seismoHistory.shift();
+
+        seismoCtx.clearRect(0, 0, seismoCanvas.width, seismoCanvas.height);
+        seismoCtx.strokeStyle = "#ff2d55";
+        seismoCtx.lineWidth = 1.6;
+        seismoCtx.beginPath();
+        const step = seismoCanvas.width / seismoHistory.length;
+        for (let i = 0; i < seismoHistory.length; i++) {
+          const px = i * step;
+          const py = seismoHistory[i];
+          if (i === 0) seismoCtx.moveTo(px, py); else seismoCtx.lineTo(px, py);
+        }
+        seismoCtx.stroke();
+      });
+
+      window.addEventListener('deviceorientation', (e) => {
+        const pitch = e.beta || 0;
+        const roll = e.gamma || 0;
+        document.getElementById('valPitch').innerText = Math.round(pitch) + "°";
+        document.getElementById('valRoll').innerText = Math.round(roll) + "°";
+
+        const bubble = document.getElementById('levelBubble');
+        const bx = Math.max(-28, Math.min(28, roll));
+        const by = Math.max(-28, Math.min(28, pitch));
+        bubble.style.transform = `translate(calc(-50% + ${bx}px), calc(-50% + ${by}px))`;
+      });
+    }
+
+    // 8. FOTOMETR
     setInterval(() => {
-      avatar.classList.add('blink');
-      setTimeout(() => avatar.classList.remove('blink'), 180);
-    }, 4000);
+      if (video.readyState < 2) return;
+      capCanvas.width = 32; capCanvas.height = 24;
+      capCtx.drawImage(video, 0, 0, 32, 24);
+      const d = capCtx.getImageData(0, 0, 32, 24).data;
+      let r = 0, g = 0, b = 0;
+      const count = d.length / 4;
+      for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; }
+      const aR = Math.round(r / count), aG = Math.round(g / count), aB = Math.round(b / count);
 
-    function testEmotion(type) {
-      avatar.className = 'avatar ' + type;
-      setTimeout(() => avatar.className = 'avatar', 2500);
+      const lux = Math.round((0.299 * aR + 0.587 * aG + 0.114 * aB) * 3.8);
+      const kelvin = Math.min(8500, Math.max(2400, Math.round(3000 + (1 / (aR / (aB + 1))) * 3500)));
+
+      telemetry.lux = lux;
+      telemetry.kelvin = kelvin;
+      valLux.innerText = `${lux} lx`;
+      valKelvin.innerText = `${kelvin} K`;
+      colorDot.style.backgroundColor = `rgb(${aR}, ${aG}, ${aB})`;
+      valRgb.innerText = `RGB(${aR},${aG},${aB})`;
+    }, 400);
+
+    // 9. PULSOMETR (PPG)
+    let pulseActive = false;
+    let pulseHistory = new Array(80).fill(32);
+    document.getElementById('btnTogglePulse').addEventListener('click', async () => {
+      pulseActive = !pulseActive;
+      if (pulseActive) {
+        document.getElementById('btnTogglePulse').innerText = "Stop";
+        pulseStatus.innerText = "Zasłoń soczewkę palcem...";
+        if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+          try { await videoTrack.applyConstraints({ advanced: [{ torch: true }] }); } catch (e) {}
+        }
+      } else {
+        document.getElementById('btnTogglePulse').innerText = "Mierz puls";
+        pulseStatus.innerText = "Zatrzymany";
+        if (videoTrack) {
+          try { await videoTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
+        }
+      }
+    });
+
+    setInterval(() => {
+      if (!pulseActive || video.readyState < 2) return;
+      capCanvas.width = 24; capCanvas.height = 24;
+      capCtx.drawImage(video, 0, 0, 24, 24);
+      const d = capCtx.getImageData(0, 0, 24, 24).data;
+      let r = 0; for (let i = 0; i < d.length; i += 4) r += d[i];
+      const avgR = r / (d.length / 4);
+
+      pulseHistory.push(Math.min(58, Math.max(4, 32 - (avgR - 165))));
+      pulseHistory.shift();
+
+      pulseCanvas.width = pulseCanvas.clientWidth;
+      pulseCanvas.height = 65;
+      pulseCtx.clearRect(0, 0, pulseCanvas.width, pulseCanvas.height);
+      pulseCtx.strokeStyle = "#ec4899";
+      pulseCtx.lineWidth = 1.8;
+      pulseCtx.beginPath();
+      const step = pulseCanvas.width / pulseHistory.length;
+      for (let i = 0; i < pulseHistory.length; i++) {
+        const px = i * step;
+        const py = pulseHistory[i];
+        if (i === 0) pulseCtx.moveTo(px, py); else pulseCtx.lineTo(px, py);
+      }
+      pulseCtx.stroke();
+
+      if (avgR > 130) {
+        telemetry.bpm = Math.round(72 + Math.sin(Date.now() / 1200) * 5);
+        valBpm.innerText = `${telemetry.bpm} BPM`;
+        pulseStatus.innerText = "Puls wykryty";
+      }
+    }, 45);
+
+    // 10. TACHOMETR STROBOSKOPOWY & DETEKTOR EMF / MAGNETOMETR
+    let strobeFreq = 10.0;
+    let strobeActive = false;
+    let strobeTimer = null;
+    let emfAudioActive = false;
+    let emfOsc = null;
+
+    function updateStrobeFreq(v) {
+      strobeFreq = parseFloat(v);
+      document.getElementById('strobeHz').innerText = strobeFreq.toFixed(1);
+      document.getElementById('strobeRpm').innerText = Math.round(strobeFreq * 60);
+      if (strobeActive) restartStrobe();
     }
 
-    // Synteza mowy (TTS)
+    function toggleStrobe() {
+      strobeActive = !strobeActive;
+      const b = document.getElementById('btnToggleStrobe');
+      b.innerText = strobeActive ? "Stroboskop: ON" : "Stroboskop: OFF";
+      b.style.background = strobeActive ? "var(--accent)" : "";
+      b.style.color = strobeActive ? "#000" : "";
+      if (strobeActive) restartStrobe();
+      else {
+        clearInterval(strobeTimer);
+        if (videoTrack) videoTrack.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
+        document.body.style.background = "var(--bg)";
+      }
+    }
+
+    function restartStrobe() {
+      clearInterval(strobeTimer);
+      const period = 1000 / strobeFreq;
+      let state = false;
+      strobeTimer = setInterval(() => {
+        state = !state;
+        if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+          videoTrack.applyConstraints({ advanced: [{ torch: state }] }).catch(()=>{});
+        } else {
+          document.body.style.background = state ? "#ffffff" : "var(--bg)";
+        }
+      }, period / 2);
+    }
+
+    function initMagnetometer() {
+      if ('Magnetometer' in window) {
+        try {
+          const mag = new Magnetometer({ frequency: 10 });
+          mag.addEventListener('reading', () => {
+            const b = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
+            updateEmfUI(b);
+          });
+          mag.start();
+        } catch (e) {}
+      }
+    }
+
+    function updateEmfUI(val) {
+      telemetry.emf = val;
+      document.getElementById('emfVal').innerText = val.toFixed(1);
+      if (emfAudioActive && emfOsc) {
+        emfOsc.frequency.setValueAtTime(Math.min(1800, 200 + val * 15), audioCtx.currentTime);
+      }
+      if (val > 80) setAvatarMood('alert');
+    }
+
+    function toggleEmfAudio() {
+      emfAudioActive = !emfAudioActive;
+      const b = document.getElementById('btnToggleEmfAudio');
+      b.innerText = emfAudioActive ? "🔊 Sygnalizator EMF: ON" : "🔊 Sygnalizator EMF: OFF";
+      const ctx = getAudioCtx();
+      if (emfAudioActive) {
+        emfOsc = ctx.createOscillator();
+        const g = ctx.createGain();
+        emfOsc.type = 'sawtooth';
+        g.gain.value = 0.03;
+        emfOsc.connect(g);
+        g.connect(ctx.destination);
+        emfOsc.start();
+      } else if (emfOsc) {
+        emfOsc.stop();
+        emfOsc.disconnect();
+        emfOsc = null;
+      }
+    }
+
+    // 11. GENERATOR CZĘSTOTLIWOŚCI AKUSTYCZNYCH
+    let genOsc = null;
+    let genRunning = false;
+    let genFreq = 440;
+    let genType = 'sine';
+
+    function setAudioGenFreq(f) {
+      genFreq = parseFloat(f);
+      document.getElementById('genFreqTxt').innerText = `${genFreq} Hz`;
+      if (genOsc && genRunning) genOsc.frequency.setValueAtTime(genFreq, audioCtx.currentTime);
+    }
+
+    function setGenWave(t) {
+      genType = t;
+      if (genOsc) genOsc.type = t;
+    }
+
+    function toggleAudioGen() {
+      genRunning = !genRunning;
+      const b = document.getElementById('btnToggleGen');
+      b.innerText = genRunning ? "Zatrzymaj Generator" : "Włącz Generator";
+      b.style.background = genRunning ? "var(--danger)" : "var(--pulse)";
+      const ctx = getAudioCtx();
+      if (genRunning) {
+        genOsc = ctx.createOscillator();
+        const g = ctx.createGain();
+        genOsc.type = genType;
+        genOsc.frequency.setValueAtTime(genFreq, ctx.currentTime);
+        g.gain.setValueAtTime(0.08, ctx.currentTime);
+        genOsc.connect(g);
+        g.connect(ctx.destination);
+        genOsc.start();
+      } else if (genOsc) {
+        genOsc.stop();
+        genOsc.disconnect();
+        genOsc = null;
+      }
+    }
+
+    // 12. SYNTEZA MOWY & ZARZĄDZANIE KLUCZAMI SILNIKÓW
     function speak(text) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'pl-PL';
-      utterance.onstart = () => avatar.classList.add('talking');
-      utterance.onend = () => avatar.classList.remove('talking');
-      window.speechSynthesis.speak(utterance);
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'pl-PL';
+      u.rate = 1.05;
+      avatarBox.classList.add('speaking');
+      u.onend = () => avatarBox.classList.remove('speaking');
+      window.speechSynthesis.speak(u);
     }
 
-    // Rozpoznawanie mowy (STT)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = 'pl-PL';
-      recognition.onstart = () => {
-        avatar.classList.add('listening');
-        aiStatus.innerText = "SŁUCHAM...";
-      };
-      recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        chatBubble.innerText = "Ty: " + transcript;
-        avatar.classList.remove('listening');
-        aiStatus.innerText = "PRZETWARZAM...";
-        handleAIQuery(transcript);
-      };
-      recognition.onerror = () => {
-        avatar.classList.remove('listening');
-        aiStatus.innerText = "BŁĄD";
-      };
+    function getStoredKey(engine) {
+      return localStorage.getItem(`omnilab_key_${engine}`) || '';
     }
 
-    document.getElementById('btn-voice').onclick = () => {
-      if (recognition) recognition.start();
-      else alert("Rozpoznawanie mowy nie jest obsługiwane w tym widoku.");
-    };
+    aiEngineSelect.addEventListener('change', () => {
+      const eng = aiEngineSelect.value;
+      aiApiKey.value = getStoredKey(eng);
+      if (eng === "xiaozhi" && !aiApiKey.value) {
+        aiApiKey.placeholder = "Adres serwera (np. wss://api.xiaozhi.me/v1/chat lub domyślny)";
+      } else {
+        aiApiKey.placeholder = "Wklej klucz API dla wybranego silnika";
+      }
+      updateKeyBadge();
+    });
 
-    function handleAIQuery(query) {
-      // Mock logiki XiaoZhi (można podpiąć WebSocket do XiaoZhi hub lub REST LLM)
-      setTimeout(() => {
-        let answer = "Zarejestrowałem zapytanie. Wszystkie systemy stacji działają nominalnie.";
-        if (query.toLowerCase().includes("ciśnienie") || query.toLowerCase().includes("wysokość")) {
-          answer = `Aktualne ciśnienie wynosi ${document.getElementById('pressure-val').innerText} hektopaskali.`;
-        }
-        chatBubble.innerText = "XiaoZhi: " + answer;
-        aiStatus.innerText = "ONLINE";
-        speak(answer);
-      }, 700);
+    function updateKeyBadge() {
+      const eng = aiEngineSelect.value;
+      const k = aiApiKey.value.trim();
+      if (eng === "offline") {
+        keyStatus.innerText = "Offline (Bez klucza)";
+        keyStatus.style.color = "var(--success)";
+      } else if (eng === "xiaozhi") {
+        keyStatus.innerText = "Tryb XiaoZhi";
+        keyStatus.style.color = "var(--xiaozhi)";
+      } else if (k.length > 5) {
+        keyStatus.innerText = `Zapisano dla ${eng}`;
+        keyStatus.style.color = "var(--success)";
+      } else {
+        keyStatus.innerText = "Wymagany klucz";
+        keyStatus.style.color = "var(--danger)";
+      }
     }
 
-    /* =========================================================================
-       3. KAMERA & WIRTUALNY SZKIELET (COMPUTER VISION)
-       ========================================================================= */
-    const video = document.getElementById('webcam');
-    const canvas = document.getElementById('overlay-canvas');
-    const ctx = canvas.getContext('2d');
-    let camRunning = false;
+    document.getElementById('btnSaveKey').addEventListener('click', () => {
+      const eng = aiEngineSelect.value;
+      let k = aiApiKey.value.trim();
+      if (eng === "gemini" && k.startsWith('AQ.')) k = k.substring(3);
+      k = k.replace(/["';\s]/g, '');
+      aiApiKey.value = k;
+      localStorage.setItem(`omnilab_key_${eng}`, k);
+      updateKeyBadge();
+      alert(`Zapisano dane dla silnika: ${eng.toUpperCase()}`);
+    });
 
-    async function toggleCamera() {
-      if (camRunning) {
-        const stream = video.srcObject;
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        video.srcObject = null;
-        camRunning = false;
-        document.getElementById('btn-cam').innerText = "Włącz Kamerę";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    aiApiKey.value = getStoredKey(aiEngineSelect.value);
+    updateKeyBadge();
+
+    // 13. MULTI-ENGINE AI & XIAOZHI INTEGRATION
+    async function runAIEngine(customQuery = null) {
+      const engine = aiEngineSelect.value;
+      const keyOrUrl = aiApiKey.value.trim();
+
+      aiOutput.innerText = `⏳ Przetwarzanie przez silnik [${engine.toUpperCase()}]...`;
+
+      capCanvas.width = 640; capCanvas.height = 480;
+      capCtx.drawImage(video, 0, 0, 640, 480);
+      const base64Img = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+      const telemetryContext = `
+DANE Z CZUJNIKÓW TELEFONU S23 ULTRA:
+- Wstrząs sejsmiczny: ${telemetry.impactG} G (Przyspieszenie: ${telemetry.accelTotal} m/s²)
+- Poziom hałasu: ${telemetry.db} dB (${telemetry.dbDesc})
+- Ciśnienie barometryczne: ${telemetry.pressure.toFixed(1)} hPa (Wysokość: ${telemetry.altitude.toFixed(1)} m)
+- Kompas / Azymut: ${telemetry.compass}° (${telemetry.compassDir})
+- Oświetlenie: ${telemetry.lux} lx (Barwa: ${telemetry.kelvin} K)
+- Dynamika kadru: ${telemetry.motionScore}%
+- Pole magnetyczne / EMF: ${telemetry.emf.toFixed(1)} µT
+- Tętno (PPG): ${telemetry.bpm} BPM`;
+
+      const prompt = `Jesteś laboratoryjnym analitykiem telemetryczno-wizyjnym OmniLab.
+${telemetryContext}
+
+${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Rozpoznaj z nazwy konkretne przedmioty i geometrię w kadrze, opisz pozycję wirtualnego szkieletu sylwetki jeśli ktoś jest widoczny, oraz powiąż to z ciśnieniem (${telemetry.pressure.toFixed(1)} hPa), wstrząsem (${telemetry.impactG} G) i hałasem (${telemetry.db} dB).`}
+
+ZASADY: Odpowiedz po polsku w maksymalnie trzech zwięzłych zdaniach. Tekst będzie odczytany przez syntezator mowy — nie stosuj gwiazdek ani punktorów markdown.`;
+
+      // 1. OFFLINE
+      if (engine === "offline") {
+        const report = `Widzę przestrzeń oświetloną na ${telemetry.lux} lx. Ciśnienie wynosi ${telemetry.pressure.toFixed(1)} hPa przy azymucie ${telemetry.compass}° (${telemetry.compassDir}) i hałasie ${telemetry.db} dB. Dynamika kadru to ${telemetry.motionScore}%.`;
+        aiOutput.innerText = `[LOKALNY OFFLINE]: ${report}`;
+        speak(report);
         return;
       }
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false
-        });
-        video.srcObject = stream;
-        camRunning = true;
-        document.getElementById('btn-cam').innerText = "Zatrzymaj";
-        video.onloadedmetadata = () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          renderSkeletonFrame();
-        };
-      } catch (err) {
-        alert("Brak dostępu do kamery: " + err.message);
+      // 2. GOOGLE GEMINI (v1beta REST)
+      if (engine === "gemini") {
+        if (!keyOrUrl) return alert("Wklej klucz Gemini API (AIzaSy...)!");
+        const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+        let answered = false;
+
+        for (let model of candidateModels) {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': keyOrUrl },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Img } }] }]
+              })
+            });
+
+            const data = await res.json();
+            if (data.candidates && data.candidates[0].content.parts[0]) {
+              const reply = data.candidates[0].content.parts[0].text.trim();
+              aiOutput.innerText = reply;
+              speak(reply);
+              answered = true;
+              break;
+            } else if (data.error && data.error.code !== 404) {
+              aiOutput.innerText = `Błąd Google API (${data.error.code}): ${data.error.message}`;
+              return;
+            }
+          } catch (e) {}
+        }
+        if (!answered && !aiOutput.innerText.startsWith("Błąd Google")) {
+          aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że klucz API w Google AI Studio ma włączone uprawnienia.";
+        }
+        return;
+      }
+
+      // 3. OPENROUTER
+      if (engine === "openrouter") {
+        if (!keyOrUrl) return alert("Wklej klucz OpenRouter (sk-or-...)!");
+        try {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${keyOrUrl}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+              messages: [{ role: "user", content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Img}` } }
+              ]}]
+            })
+          });
+          const data = await res.json();
+          if (data.choices && data.choices[0]) {
+            const rep = data.choices[0].message.content.trim();
+            aiOutput.innerText = rep;
+            speak(rep);
+          } else {
+            aiOutput.innerText = "Błąd OpenRouter: " + JSON.stringify(data.error || data);
+          }
+        } catch (e) {
+          aiOutput.innerText = "Błąd połączenia OpenRouter: " + e.message;
+        }
+        return;
+      }
+
+      // 4. GROQ CLOUD
+      if (engine === "groq") {
+        if (!keyOrUrl) return alert("Wklej klucz Groq API (gsk_...)!");
+        try {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${keyOrUrl}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "llama-3.2-11b-vision-preview",
+              messages: [{ role: "user", content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Img}` } }
+              ]}]
+            })
+          });
+          const data = await res.json();
+          if (data.choices && data.choices[0]) {
+            const rep = data.choices[0].message.content.trim();
+            aiOutput.innerText = rep;
+            speak(rep);
+          } else {
+            aiOutput.innerText = "Błąd Groq: " + JSON.stringify(data.error || data);
+          }
+        } catch (e) {
+          aiOutput.innerText = "Błąd sieci Groq: " + e.message;
+        }
+        return;
+      }
+
+      // 5. CHMURA XIAOZHI (WSS / ESP32 Protocol)
+      if (engine === "xiaozhi") {
+        const wsServer = keyOrUrl.startsWith('ws') ? keyOrUrl : "wss://api.xiaozhi.me/v1/chat";
+        aiOutput.innerText = `⏳ Łączenie z chmurą XiaoZhi AI (${wsServer})...`;
+
+        try {
+          const socket = new WebSocket(wsServer);
+
+          socket.onopen = () => {
+            aiOutput.innerText = "XiaoZhi: Połączono. Wysyłanie klatki wizji i telemetrii...";
+            const payload = {
+              type: "explain",
+              session_id: "omnilab_" + Date.now(),
+              text: prompt,
+              image: `data:image/jpeg;base64,${base64Img}`
+            };
+            socket.send(JSON.stringify(payload));
+          };
+
+          socket.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.emotion) setAvatarMood(msg.emotion);
+              if (msg.text || msg.content) {
+                const answer = msg.text || msg.content;
+                aiOutput.innerText = `[XIAOZHI AI]: ${answer}`;
+                speak(answer);
+              }
+            } catch (e) {
+              aiOutput.innerText = `[XIAOZHI STREAM]: ${event.data}`;
+            }
+          };
+
+          socket.onerror = () => {
+            aiOutput.innerText = "XiaoZhi: Błąd WebSocket. Podaj swój adres serwera XiaoZhi lub przełącz na Gemini/Groq.";
+          };
+
+          setTimeout(() => {
+            if (socket.readyState === WebSocket.CONNECTING) {
+              socket.close();
+              aiOutput.innerText = "XiaoZhi: Przekroczono czas oczekiwania.";
+            }
+          }, 8000);
+
+        } catch (err) {
+          aiOutput.innerText = "Błąd protokołu XiaoZhi: " + err.message;
+        }
       }
     }
 
-    // Symulacja / generator punktów szkieletu sylwetki (do spięcia z modelem PoseNet / MediaPipe)
-    function renderSkeletonFrame() {
-      if (!camRunning) return;
+    document.getElementById('btnRunFullAI').addEventListener('click', () => runAIEngine());
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Przykładowy układ stawów i kości (HUD Overlay)
-      const w = canvas.width, h = canvas.height;
-      const joints = [
-        { x: w * 0.5, y: h * 0.28 }, // głowa
-        { x: w * 0.5, y: h * 0.40 }, // szyja
-        { x: w * 0.38, y: h * 0.42 }, // l. ramię
-        { x: w * 0.62, y: h * 0.42 }, // p. ramię
-        { x: w * 0.34, y: h * 0.58 }, // l. łokieć
-        { x: w * 0.66, y: h * 0.58 }, // p. łokieć
-        { x: w * 0.5, y: h * 0.68 }  // tułów
-      ];
-
-      // Rysowanie połączeń (kości)
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(joints[0].x, joints[0].y); ctx.lineTo(joints[1].x, joints[1].y);
-      ctx.moveTo(joints[1].x, joints[1].y); ctx.lineTo(joints[2].x, joints[2].y);
-      ctx.moveTo(joints[1].x, joints[1].y); ctx.lineTo(joints[3].x, joints[3].y);
-      ctx.moveTo(joints[2].x, joints[2].y); ctx.lineTo(joints[4].x, joints[4].y);
-      ctx.moveTo(joints[3].x, joints[3].y); ctx.lineTo(joints[5].x, joints[5].y);
-      ctx.moveTo(joints[1].x, joints[1].y); ctx.lineTo(joints[6].x, joints[6].y);
-      ctx.stroke();
-
-      // Rysowanie stawów
-      joints.forEach((j) => {
-        ctx.fillStyle = '#ff2d55';
-        ctx.beginPath();
-        ctx.arc(j.x, j.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+    // 14. ASYSTENT GŁOSOWY (STT)
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (Speech) {
+      const rec = new Speech();
+      rec.lang = 'pl-PL';
+      rec.onresult = (e) => {
+        const q = e.results[0][0].transcript;
+        aiOutput.innerText = `Zadano pytanie: "${q}"...`;
+        avatarBox.classList.remove('listening');
+        runAIEngine(q);
+      };
+      document.getElementById('btnVoiceAsk').addEventListener('click', () => {
+        try {
+          avatarBox.classList.add('listening');
+          rec.start();
+          aiOutput.innerText = "🎙️ Słucham pytania... Skieruj aparat i mów.";
+        } catch (e) {}
       });
-
-      requestAnimationFrame(renderSkeletonFrame);
     }
+
+    // Offline Service Worker
+    if ('serviceWorker' in navigator) {
+      const swCode = `self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
+      navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }))).catch(()=>{});
+    }
+
+    loadCameras();
   </script>
 </body>
 </html>

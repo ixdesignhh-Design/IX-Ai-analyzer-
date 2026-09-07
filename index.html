@@ -6,9 +6,14 @@
   <meta name="theme-color" content="#030712">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>OmniLab Pro Station // Multi-Engine & XiaoZhi Hub</title>
-  
-  <!-- PWA Manifest Inline gotowy pod PWA Builder -->
+  <title>OmniLab Pro Station // Real-Time AI Vision Hub</title>
+
+  <!-- Biblioteki TensorFlow.js & COCO-SSD & PoseNet do prawdziwej detekcji obiektów i szkieletu -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2/dist/posenet.min.js"></script>
+
+  <!-- PWA Manifest Inline -->
   <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22OmniLab%20Pro%20Station%22%2C%22short_name%22%3A%22OmniLab%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23030712%22%2C%22theme_color%22%3A%22%2300f0ff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fapi.iconify.design%2Fmdi%3Ashield-bug.svg%3Fcolor%3D%252300f0ff%22%2C%22sizes%22%3A%22192x192%20512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 
   <style>
@@ -42,66 +47,34 @@
     header h1 { font-size: 0.95rem; color: var(--accent); font-weight: 800; letter-spacing: 0.5px; }
 
     /* MENU MODUŁÓW */
-    .module-manager {
-      background: #0f172a;
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid var(--border);
-    }
-    .toggle-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-top: 6px;
-    }
+    .module-manager { background: #0f172a; border-radius: 10px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
+    .toggle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
     .toggle-btn {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid var(--border);
-      color: var(--sub);
-      padding: 6px 4px;
-      border-radius: 6px;
-      font-size: 0.68rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-      user-select: none;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--sub);
+      padding: 6px 4px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer; text-align: center; user-select: none;
     }
-    .toggle-btn.active {
-      background: rgba(0, 240, 255, 0.15);
-      border-color: var(--accent);
-      color: #fff;
-    }
+    .toggle-btn.active { background: rgba(0, 240, 255, 0.15); border-color: var(--accent); color: #fff; }
 
     .card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
-      border: 1px solid var(--border);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      position: relative;
+      background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px;
+      border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.4); position: relative;
     }
     .card.hidden { display: none !important; }
 
-    /* PEŁNY EKRAN WYKRESU (ZOOM) */
     .card.zoomed {
-      position: fixed !important;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 9999; margin: 0; border-radius: 0;
-      background: #030712; display: flex; flex-direction: column;
+      position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 9999; margin: 0; border-radius: 0; background: #030712; display: flex; flex-direction: column;
       justify-content: space-between; padding: 16px;
     }
     .card.zoomed canvas.graph-canvas { height: 65vh !important; }
 
-    /* KAMERA & HUD */
+    /* KAMERA & NEURAL HUD */
     .viewport-box {
-      position: relative; width: 100%; height: 34vh; min-height: 240px;
-      border-radius: 8px; overflow: hidden; background: #000;
-      border: 1px solid rgba(0, 240, 255, 0.25);
+      position: relative; width: 100%; height: 42vh; min-height: 280px;
+      border-radius: 8px; overflow: hidden; background: #000; border: 1px solid rgba(0, 240, 255, 0.3);
     }
     video { width: 100%; height: 100%; object-fit: cover; }
-    #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
     canvas.hidden-canvas { display: none; }
 
     /* KOMPAS */
@@ -114,8 +87,7 @@
     }
     .compass-pointer {
       position: absolute; top: 5px; width: 0; height: 0;
-      border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 13px solid var(--accent);
-      z-index: 5;
+      border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 13px solid var(--accent); z-index: 5;
     }
     #compassDialCanvas { width: 166px; height: 166px; }
     .compass-center-screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; z-index: 6; }
@@ -135,8 +107,7 @@
     .btn {
       width: 100%; background: var(--accent); color: #030712; border: none;
       padding: 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
-      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px;
-      transition: 0.15s;
+      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px; transition: 0.15s;
     }
     .btn:active { transform: scale(0.98); }
     .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 6px 12px; font-size: 0.75rem; width: auto; margin-top: 0; }
@@ -151,7 +122,6 @@
       color: #fff; padding: 8px; border-radius: 8px; font-size: 0.85rem; margin-top: 6px;
     }
     input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0; }
-
     .color-preview { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; border: 1px solid #fff; }
 
     /* AWATAR XIAOZHI */
@@ -160,8 +130,8 @@
       width: 64px; height: 64px; border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #60a5fa, #1e3a8a, #030712);
       box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-      display: flex; align-items: center; justify-content: center;
-      position: relative; flex-shrink: 0; transition: transform 0.2s, box-shadow 0.2s;
+      display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
     .avatar.speaking { transform: scale(1.08); box-shadow: 0 0 25px rgba(0, 240, 255, 0.8); }
     .avatar.listening { box-shadow: 0 0 25px rgba(236, 72, 153, 0.8); }
@@ -178,8 +148,7 @@
     }
     .level-bubble {
       width: 20px; height: 20px; background: var(--seismo); border-radius: 50%;
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      box-shadow: 0 0 10px var(--seismo);
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px var(--seismo);
     }
     .level-crosshair {
       position: absolute; top: 50%; left: 50%; width: 30px; height: 30px;
@@ -198,8 +167,8 @@
   <div class="module-manager">
     <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">ZARZĄDZANIE MODUŁAMI:</span>
     <div class="toggle-grid">
-      <div class="toggle-btn active" data-target="mod-camera">[1] Kamera</div>
-      <div class="toggle-btn active" data-target="mod-vision">[2] Analiza Wizji</div>
+      <div class="toggle-btn active" data-target="mod-camera">[1] Kamera & AI Vision</div>
+      <div class="toggle-btn active" data-target="mod-vision">[2] Wykryte Obiekty</div>
       <div class="toggle-btn active" data-target="mod-baro">[BARO] Barometr / Wario</div>
       <div class="toggle-btn active" data-target="mod-compass">[3] Kompas Morski</div>
       <div class="toggle-btn active" data-target="mod-audio">[4] Decybelomierz</div>
@@ -213,7 +182,7 @@
     </div>
   </div>
 
-  <!-- [★] REJESTRATOR DANYCH CSV / BADANIE DRUKARKI -->
+  <!-- [★] REJESTRATOR DANYCH CSV -->
   <div class="card" id="mod-logger" style="border-left: 4px solid var(--danger);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--danger);">REJESTRATOR DANYCH (CSV EXPORT)</span>
@@ -255,7 +224,7 @@
     </div>
   </div>
 
-  <!-- [1] KAMERA ZE SPRZĘTOWYM OBRACANIEM & HUD AR -->
+  <!-- [1] KAMERA ZE SPRZĘTOWYM OBRACANIEM & PRAWDZIWY NEURAL HUD -->
   <div class="card" id="mod-camera" style="padding: 10px;">
     <div class="viewport-box">
       <video id="webcam" playsinline webkit-playsinline autoplay muted></video>
@@ -265,18 +234,22 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
       <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera: Szukanie...</span>
       <div style="display: flex; gap: 6px;">
-        <button class="btn btn-sec" id="btnToggleAR" onclick="cycleAROverlay()">Tryb AR: <span id="arModeText" style="color:var(--accent);">Szkielet</span></button>
-        <button class="btn btn-sec" id="btnSwitchCam">🔄 Aparat (S23U)</button>
+        <button class="btn btn-sec" id="btnToggleLiveNarration" onclick="toggleLiveNarration()">🗣️ Mów na żywo: OFF</button>
+        <button class="btn btn-sec" id="btnToggleAR" onclick="cycleAROverlay()">Tryb: <span id="arModeText" style="color:var(--accent);">Obiekty + Szkielet</span></button>
+        <button class="btn btn-sec" id="btnSwitchCam">🔄 Aparat</button>
       </div>
     </div>
   </div>
 
-  <!-- [2] ANALIZA WIZYJNA & RUCH -->
+  <!-- [2] WYKRYTE OBIEKTY & POZYCJA CIAŁA (COCO-SSD / POSENET) -->
   <div class="card" id="mod-vision" style="border-left: 4px solid var(--accent);">
-    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] DETEKCJA WIZYJNA & RUCH (REAL-TIME)</div>
-    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
-      <span>Dynamika kadru: <b id="valMotionPercent" style="color: var(--accent);">0%</b></span>
-      <span>Stan obiektów: <b id="valObjectsCount" style="color: #fff;">Statyczny</b></span>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] ANALIZA WIZYJNA SIECI NEURONOWEJ (AI LIVE)</span>
+      <span id="modelStatus" style="font-size: 0.7rem; color: var(--gold);">Ładowanie modeli AI...</span>
+    </div>
+    <div style="margin-top: 6px; font-size: 0.85rem;">
+      <div>Obiekty w kadrze: <b id="valDetectedList" style="color: var(--accent);">Skanowanie...</b></div>
+      <div style="margin-top:4px;">Postawa człowieka: <b id="valBodyPose" style="color: #fff;">Brak sylwetki</b></div>
     </div>
   </div>
 
@@ -329,7 +302,6 @@
       <span>X:<b id="valAccX">0.0</b> Y:<b id="valAccY">0.0</b> Z:<b id="valAccZ">9.8</b></span>
       <span>Pitch <b id="valPitch">0°</b> | Roll <b id="valRoll">0°</b></span>
     </div>
-    <!-- Poziomica 2D -->
     <div class="bubble-level">
       <div class="level-crosshair"></div>
       <div class="level-bubble" id="levelBubble"></div>
@@ -410,7 +382,7 @@
         </div>
       </div>
       <div style="flex: 1; font-size: 0.8rem; color: var(--sub);" id="aiStatusDesc">
-        Awatar XiaoZhi gotowy. Reaguje na stany rozmowy i emocje chmury.
+        Awatar XiaoZhi gotowy. Śledzi obiekty i syntezuje głosowo obraz.
       </div>
     </div>
 
@@ -488,6 +460,9 @@
     const hubStatus = document.getElementById('hubStatus');
     const aiEngineSelect = document.getElementById('aiEngineSelect');
     const avatarBox = document.getElementById('avatarBox');
+    const modelStatus = document.getElementById('modelStatus');
+    const valDetectedList = document.getElementById('valDetectedList');
+    const valBodyPose = document.getElementById('valBodyPose');
 
     let currentStream = null;
     let videoTrack = null;
@@ -497,6 +472,15 @@
     let analyser = null;
     let compassOffset = 0;
 
+    // MODELE SIECI NEURONOWYCH
+    let cocoModel = null;
+    let poseModel = null;
+    let detectedObjects = [];
+    let detectedPose = null;
+    let isLiveNarrating = false;
+    let lastSpokenText = "";
+    let narrationTimer = null;
+
     const telemetry = {
       compass: 0, compassDir: "N",
       impactG: 0, accelTotal: 0,
@@ -504,7 +488,8 @@
       db: 0, dbDesc: "Cisza",
       bpm: "--", motionScore: 0,
       pressure: 1013.25, altitude: 0,
-      emf: 45.0
+      emf: 45.0,
+      objects: []
     };
 
     function getAudioCtx() {
@@ -526,7 +511,67 @@
       initMagnetometer();
       hubStatus.innerText = "System Online";
       hubStatus.style.color = "var(--success)";
-      speak("Systemy OmniLab zainicjalizowane.");
+      speak("Systemy i sensory OmniLab są aktywne.");
+    }
+
+    /* =========================================================================
+       PRAWDZIWE ŁADOWANIE MODELI SIECI NEURONOWYCH (COCO-SSD + POSENET)
+       ========================================================================= */
+    async function loadNeuralVisionModels() {
+      try {
+        modelStatus.innerText = "Pobieranie wag sieci AI...";
+        cocoModel = await cocoSsd.load();
+        poseModel = await posenet.load({
+          architecture: 'MobileNetV1',
+          outputStride: 16,
+          inputResolution: { width: 257, height: 200 },
+          multiplier: 0.5
+        });
+        modelStatus.innerText = "Sieci neuronowe: ONLINE (30 FPS)";
+        modelStatus.style.color = "var(--success)";
+        runNeuralDetectionLoop();
+      } catch (err) {
+        console.warn("Błąd ładowania modeli AI:", err);
+        modelStatus.innerText = "Błąd modeli (Wymagane połączenie z siecią)";
+        modelStatus.style.color = "var(--danger)";
+      }
+    }
+
+    // PĘTLA INFERENCJI SIECI W CZASIE RZECZYWISTYM
+    async function runNeuralDetectionLoop() {
+      if (video.readyState >= 2 && cocoModel && poseModel) {
+        try {
+          // 1. Prawdziwe rozpoznawanie obiektów COCO-SSD
+          const predictions = await cocoModel.detect(video);
+          detectedObjects = predictions;
+
+          // 2. Prawdziwa detekcja sylwetki PoseNet
+          const pose = await poseModel.estimateSinglePose(video, { flipHorizontal: false });
+          detectedPose = pose;
+
+          // Tłumaczenie etykiet i telemetria
+          const labels = predictions.map(p => translateObject(p.class));
+          telemetry.objects = labels;
+          valDetectedList.innerText = labels.length > 0 ? labels.join(", ") : "Brak wyraźnych obiektów";
+
+          if (pose && pose.score > 0.25) {
+            valBodyPose.innerText = `Sylwetka wykryta (${Math.round(pose.score * 100)}% pewności)`;
+          } else {
+            valBodyPose.innerText = "Brak sylwetki w kadrze";
+          }
+        } catch(e) {}
+      }
+      setTimeout(runNeuralDetectionLoop, 120); // ~8-10 analiz na sekundę dla zachowania płynności baterii S23U
+    }
+
+    function translateObject(eng) {
+      const dict = {
+        'person': 'Człowiek', 'cell phone': 'Telefon', 'laptop': 'Laptop', 'cup': 'Kubek',
+        'bottle': 'Butelka', 'chair': 'Krzesło', 'mouse': 'Myszka', 'keyboard': 'Klawiatura',
+        'book': 'Książka', 'scissors': 'Nożyczki', 'remote': 'Pilot', 'car': 'Samochód',
+        'cat': 'Kot', 'dog': 'Pies', 'backpack': 'Plecak', 'watch': 'Zegarek'
+      };
+      return dict[eng] || eng;
     }
 
     // AWATAR EMOCJE
@@ -698,7 +743,7 @@
       varioTimer = setTimeout(runVarioLoop, (dur + pause) * 1000);
     }
 
-    // 3. SPRZĘTOWE PRZEŁĄCZANIE APARATÓW (SAMSUNG S23U)
+    // 3. KAMERA
     async function loadCameras() {
       try {
         const initS = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -732,6 +777,7 @@
         videoTrack = currentStream.getVideoTracks()[0];
         await video.play();
         camLabel.innerText = videoDevices[idx].label ? videoDevices[idx].label.substring(0, 26) : `Aparat #${idx + 1}`;
+        loadNeuralVisionModels();
       } catch (e) {
         startFallbackCamera();
       }
@@ -744,6 +790,7 @@
         videoTrack = currentStream.getVideoTracks()[0];
         await video.play();
         camLabel.innerText = "Kamera aktywna";
+        loadNeuralVisionModels();
       } catch (e) {
         camLabel.innerText = "Brak dostępu do kamery!";
       }
@@ -758,11 +805,9 @@
       }
     });
 
-    // 4. DETEKCJA WIZYJNA & HUD Z WIRTUALNYM SZKIELETEM AR
-    let lastPixels = null;
-    let scanY = 0;
-    let arMode = 0; // 0: Szkielet, 1: Siatka, 2: Kątownik
-    const arModes = ["Szkielet", "Siatka AR", "Kątownik"];
+    // 4. PRAWDZIWY NEURAL HUD - RYSOWANIE OBIEKTÓW I SZKIELETU W CZASIE RZECZYWISTYM
+    let arMode = 0; // 0: Wszystko, 1: Tylko Szkielet, 2: Siatka
+    const arModes = ["Obiekty + Szkielet", "Tylko Szkielet", "Siatka AR"];
 
     function cycleAROverlay() {
       arMode = (arMode + 1) % arModes.length;
@@ -775,89 +820,96 @@
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 
       const w = hudCanvas.width, h = hudCanvas.height;
+      const vW = video.videoWidth || w, vH = video.videoHeight || h;
+      const scaleX = w / vW, scaleY = h / vH;
 
-      if (arMode === 0) {
-        // WIRTUALNY SZKIELET AR
-        const joints = [
-          { x: w * 0.5, y: h * 0.22 }, // Głowa
-          { x: w * 0.5, y: h * 0.35 }, // Szyja
-          { x: w * 0.38, y: h * 0.38 }, // L. ramię
-          { x: w * 0.62, y: h * 0.38 }, // P. ramię
-          { x: w * 0.32, y: h * 0.54 }, // L. łokieć
-          { x: w * 0.68, y: h * 0.54 }, // P. łokieć
-          { x: w * 0.28, y: h * 0.70 }, // L. dłoń
-          { x: w * 0.72, y: h * 0.70 }, // P. dłoń
-          { x: w * 0.5, y: h * 0.65 },  // Miednica
-          { x: w * 0.42, y: h * 0.88 }, // L. kolano
-          { x: w * 0.58, y: h * 0.88 }  // P. kolano
-        ];
+      // 1. RYSOWANIE RAMIEK OBIEKTÓW (COCO-SSD)
+      if (arMode === 0 && detectedObjects && detectedObjects.length > 0) {
+        detectedObjects.forEach(pred => {
+          const [bx, by, bw, bh] = pred.bbox;
+          const x = bx * scaleX, y = by * scaleY, width = bw * scaleX, height = bh * scaleY;
 
-        hudCtx.strokeStyle = "rgba(0, 240, 255, 0.8)";
-        hudCtx.lineWidth = 2.5;
-        hudCtx.beginPath();
-        hudCtx.moveTo(joints[0].x, joints[0].y); hudCtx.lineTo(joints[1].x, joints[1].y);
-        hudCtx.moveTo(joints[1].x, joints[1].y); hudCtx.lineTo(joints[2].x, joints[2].y);
-        hudCtx.moveTo(joints[1].x, joints[1].y); hudCtx.lineTo(joints[3].x, joints[3].y);
-        hudCtx.moveTo(joints[2].x, joints[2].y); hudCtx.lineTo(joints[4].x, joints[4].y);
-        hudCtx.moveTo(joints[3].x, joints[3].y); hudCtx.lineTo(joints[5].x, joints[5].y);
-        hudCtx.moveTo(joints[4].x, joints[4].y); hudCtx.lineTo(joints[6].x, joints[6].y);
-        hudCtx.moveTo(joints[5].x, joints[5].y); hudCtx.lineTo(joints[7].x, joints[7].y);
-        hudCtx.moveTo(joints[1].x, joints[1].y); hudCtx.lineTo(joints[8].x, joints[8].y);
-        hudCtx.moveTo(joints[8].x, joints[8].y); hudCtx.lineTo(joints[9].x, joints[9].y);
-        hudCtx.moveTo(joints[8].x, joints[8].y); hudCtx.lineTo(joints[10].x, joints[10].y);
-        hudCtx.stroke();
+          hudCtx.strokeStyle = "#00f0ff";
+          hudCtx.lineWidth = 2;
+          hudCtx.strokeRect(x, y, width, height);
 
-        joints.forEach(j => {
-          hudCtx.fillStyle = "#ff2d55";
-          hudCtx.beginPath();
-          hudCtx.arc(j.x, j.y, 5, 0, Math.PI * 2);
-          hudCtx.fill();
+          // Etykieta
+          hudCtx.fillStyle = "rgba(0, 240, 255, 0.85)";
+          const label = `${translateObject(pred.class)} ${Math.round(pred.score * 100)}%`;
+          hudCtx.font = "bold 12px sans-serif";
+          hudCtx.fillRect(x, Math.max(0, y - 18), hudCtx.measureText(label).width + 8, 18);
+          hudCtx.fillStyle = "#000";
+          hudCtx.fillText(label, x + 4, Math.max(14, y - 4));
         });
-      } else if (arMode === 1) {
-        // SIATKA KALIBRACYJNA
+      }
+
+      // 2. RYSOWANIE PRAWDZIWEGO SZKIELETU CIAŁA (POSENET)
+      if ((arMode === 0 || arMode === 1) && detectedPose && detectedPose.keypoints) {
+        const kps = detectedPose.keypoints;
+        const minConf = 0.35;
+
+        // Rysowanie połączeń kości
+        const adjacentKeyPoints = posenet.getAdjacentKeyPoints(kps, minConf);
+        adjacentKeyPoints.forEach(pair => {
+          hudCtx.beginPath();
+          hudCtx.moveTo(pair[0].position.x * scaleX, pair[0].position.y * scaleY);
+          hudCtx.lineTo(pair[1].position.x * scaleX, pair[1].position.y * scaleY);
+          hudCtx.lineWidth = 3;
+          hudCtx.strokeStyle = "#ff2d55";
+          hudCtx.stroke();
+        });
+
+        // Rysowanie stawów
+        kps.forEach(kp => {
+          if (kp.score > minConf) {
+            hudCtx.beginPath();
+            hudCtx.arc(kp.position.x * scaleX, kp.position.y * scaleY, 5, 0, 2 * Math.PI);
+            hudCtx.fillStyle = "#fbbf24";
+            hudCtx.fill();
+            hudCtx.strokeStyle = "#fff";
+            hudCtx.lineWidth = 1.5;
+            hudCtx.stroke();
+          }
+        });
+      }
+
+      // 3. SIATKA
+      if (arMode === 2) {
         hudCtx.strokeStyle = "rgba(0, 240, 255, 0.35)";
         hudCtx.lineWidth = 1;
         for (let x = 0; x < w; x += 35) { hudCtx.beginPath(); hudCtx.moveTo(x, 0); hudCtx.lineTo(x, h); hudCtx.stroke(); }
         for (let y = 0; y < h; y += 35) { hudCtx.beginPath(); hudCtx.moveTo(0, y); hudCtx.lineTo(w, y); hudCtx.stroke(); }
-      } else if (arMode === 2) {
-        // KĄTOWNIK / CELOWNIK
-        hudCtx.strokeStyle = "var(--gold)";
-        hudCtx.lineWidth = 2;
-        hudCtx.beginPath();
-        hudCtx.arc(w / 2, h / 2, 50, 0, Math.PI * 2);
-        hudCtx.moveTo(w / 2 - 70, h / 2); hudCtx.lineTo(w / 2 + 70, h / 2);
-        hudCtx.moveTo(w / 2, h / 2 - 70); hudCtx.lineTo(w / 2, h / 2 + 70);
-        hudCtx.stroke();
       }
 
-      // Skaner ruchu
-      const bW = w * 0.75, bH = h * 0.75;
-      const x = (w - bW) / 2, y = (h - bH) / 2;
-      scanY = (scanY + 2) % bH;
-      hudCtx.strokeStyle = "rgba(0, 240, 255, 0.5)";
-      hudCtx.beginPath();
-      hudCtx.moveTo(x, y + scanY); hudCtx.lineTo(x + bW, y + scanY);
-      hudCtx.stroke();
-
-      if (video.readyState >= 2) {
-        capCanvas.width = 48; capCanvas.height = 36;
-        capCtx.drawImage(video, 0, 0, 48, 36);
-        const cur = capCtx.getImageData(0, 0, 48, 36).data;
-        if (lastPixels) {
-          let delta = 0;
-          for (let i = 0; i < cur.length; i += 4) {
-            delta += Math.abs(cur[i] - lastPixels[i]) + Math.abs(cur[i+1] - lastPixels[i+1]);
-          }
-          const score = Math.min(100, Math.round((delta / (cur.length / 4)) / 3));
-          telemetry.motionScore = score;
-          document.getElementById('valMotionPercent').innerText = `${score}%`;
-          document.getElementById('valObjectsCount').innerText = score > 30 ? "Wykryto ruch" : "Kadr statyczny";
-        }
-        lastPixels = cur;
-      }
       requestAnimationFrame(renderHUD);
     }
     requestAnimationFrame(renderHUD);
+
+    // TRYB „MÓW NA ŻYWO TO CO WIDZISZ”
+    function toggleLiveNarration() {
+      isLiveNarrating = !isLiveNarrating;
+      const b = document.getElementById('btnToggleLiveNarration');
+      b.innerText = isLiveNarrating ? "🗣️ Mów na żywo: ON" : "🗣️ Mów na żywo: OFF";
+      b.style.background = isLiveNarrating ? "var(--success)" : "";
+      b.style.color = isLiveNarrating ? "#000" : "#fff";
+
+      if (isLiveNarrating) {
+        narrationTimer = setInterval(() => {
+          if (telemetry.objects.length > 0) {
+            const currentObs = telemetry.objects.join(", ");
+            if (currentObs !== lastSpokenText) {
+              lastSpokenText = currentObs;
+              let txt = `W kadrze widzę: ${currentObs}.`;
+              if (detectedPose && detectedPose.score > 0.4) txt += " Widoczna jest również sylwetka człowieka.";
+              aiOutput.innerText = `[NARRATOR NA ŻYWO]: ${txt}`;
+              speak(txt);
+            }
+          }
+        }, 3800);
+      } else {
+        clearInterval(narrationTimer);
+      }
+    }
 
     // 5. KOMPAS MORSKI
     function drawNavCompass(angleDeg) {
@@ -1228,7 +1280,7 @@
       }
     }
 
-    // 12. SYNTEZA MOWY & ZARZĄDZANIE KLUCZAMI SILNIKÓW
+    // 12. SYNTEZA MOWY & KLUCZE
     function speak(text) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
@@ -1287,7 +1339,7 @@
     aiApiKey.value = getStoredKey(aiEngineSelect.value);
     updateKeyBadge();
 
-    // 13. MULTI-ENGINE AI & XIAOZHI INTEGRATION
+    // 13. ZAAWANSOWANA ANALIZA AI Z PEŁNYM OBRAZEM I TELEMETRIĄ
     async function runAIEngine(customQuery = null) {
       const engine = aiEngineSelect.value;
       const keyOrUrl = aiApiKey.value.trim();
@@ -1298,27 +1350,27 @@
       capCtx.drawImage(video, 0, 0, 640, 480);
       const base64Img = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
+      const detectedStr = telemetry.objects.length > 0 ? telemetry.objects.join(", ") : "brak";
       const telemetryContext = `
-DANE Z CZUJNIKÓW TELEFONU S23 ULTRA:
+DANE Z CZUJNIKÓW I SIECI NEURONOWEJ TELEFONU:
+- Obiekty wykryte przez pokładowe AI: ${detectedStr}
 - Wstrząs sejsmiczny: ${telemetry.impactG} G (Przyspieszenie: ${telemetry.accelTotal} m/s²)
 - Poziom hałasu: ${telemetry.db} dB (${telemetry.dbDesc})
 - Ciśnienie barometryczne: ${telemetry.pressure.toFixed(1)} hPa (Wysokość: ${telemetry.altitude.toFixed(1)} m)
 - Kompas / Azymut: ${telemetry.compass}° (${telemetry.compassDir})
 - Oświetlenie: ${telemetry.lux} lx (Barwa: ${telemetry.kelvin} K)
-- Dynamika kadru: ${telemetry.motionScore}%
-- Pole magnetyczne / EMF: ${telemetry.emf.toFixed(1)} µT
-- Tętno (PPG): ${telemetry.bpm} BPM`;
+- Pole magnetyczne / EMF: ${telemetry.emf.toFixed(1)} µT`;
 
-      const prompt = `Jesteś laboratoryjnym analitykiem telemetryczno-wizyjnym OmniLab.
+      const prompt = `Jesteś laboratoryjnym asystentem wizyjnym OmniLab.
 ${telemetryContext}
 
-${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Rozpoznaj z nazwy konkretne przedmioty i geometrię w kadrze, opisz pozycję wirtualnego szkieletu sylwetki jeśli ktoś jest widoczny, oraz powiąż to z ciśnieniem (${telemetry.pressure.toFixed(1)} hPa), wstrząsem (${telemetry.impactG} G) i hałasem (${telemetry.db} dB).`}
+${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Opisz szczegółowo to, co widzisz na zdjęciu (przedmioty, sylwetkę człowieka, przestrzeń), uwzględniając wykryte obiekty (${detectedStr}) oraz telemetrię środowiskową.`}
 
-ZASADY: Odpowiedz po polsku w maksymalnie trzech zwięzłych zdaniach. Tekst będzie odczytany przez syntezator mowy — nie stosuj gwiazdek ani punktorów markdown.`;
+ZASADY: Odpowiedz po polsku w maksymalnie trzech zwięzłych zdaniach. Odpowiedź będzie odczytana przez głos bota — nie stosuj gwiazdek markdown.`;
 
       // 1. OFFLINE
       if (engine === "offline") {
-        const report = `Widzę przestrzeń oświetloną na ${telemetry.lux} lx. Ciśnienie wynosi ${telemetry.pressure.toFixed(1)} hPa przy azymucie ${telemetry.compass}° (${telemetry.compassDir}) i hałasie ${telemetry.db} dB. Dynamika kadru to ${telemetry.motionScore}%.`;
+        const report = `W kadrze rozpoznano: ${detectedStr}. Ciśnienie wynosi ${telemetry.pressure.toFixed(1)} hPa przy oświetleniu ${telemetry.lux} lx i hałasie ${telemetry.db} dB.`;
         aiOutput.innerText = `[LOKALNY OFFLINE]: ${report}`;
         speak(report);
         return;

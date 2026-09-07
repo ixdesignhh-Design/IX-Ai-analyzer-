@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OmniLab Pro // S23 Ultra Telemetry & Biosensors</title>
+  <title>OmniLab Pro // S23 Ultra Active Vision & Compass</title>
   
   <style>
     :root {
-      --bg: #050811;
-      --card: #0d1322;
+      --bg: #040711;
+      --card: #0b1120;
       --border: rgba(255, 255, 255, 0.08);
       --accent: #00e5ff;
       --pulse: #ff0055;
       --seismo: #ff3366;
-      --light: #ffbb00;
       --compass: #a855f7;
       --text: #f8fafc;
       --sub: #94a3b8;
@@ -39,30 +38,79 @@
       padding: 12px;
       margin-bottom: 10px;
       border: 1px solid var(--border);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     }
 
+    /* VIEWPORT KAMERY Z NAKŁADKĄ HUD */
     .viewport-box {
       position: relative;
       width: 100%;
-      height: 32vh;
-      min-height: 220px;
+      height: 38vh;
+      min-height: 260px;
       border-radius: 8px;
       overflow: hidden;
       background: #000;
     }
     video { width: 100%; height: 100%; object-fit: cover; }
+    #hudCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
     canvas.hidden-canvas { display: none; }
 
-    #seismoCanvas, #pulseCanvas {
+    /* WIRTUALNY KOMPAS GRAFICZNY */
+    .compass-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 10px 0;
+    }
+    .compass-dial {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #111827 0%, #030712 100%);
+      border: 2px solid var(--compass);
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .compass-rose {
+      position: absolute;
       width: 100%;
-      height: 70px;
+      height: 100%;
+      transition: transform 0.1s ease-out;
+    }
+    .compass-needle {
+      position: absolute;
+      width: 4px;
+      height: 48px;
+      background: linear-gradient(to bottom, #ef4444 50%, #ffffff 50%);
+      border-radius: 2px;
+      top: 7px;
+    }
+    .compass-center {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      z-index: 2;
+    }
+
+    #seismoCanvas {
+      width: 100%;
+      height: 65px;
       background: #030508;
       border-radius: 6px;
       margin-top: 6px;
+      border: 1px solid rgba(255, 51, 102, 0.25);
     }
-    #seismoCanvas { border: 1px solid rgba(255, 51, 102, 0.25); }
-    #pulseCanvas { border: 1px solid rgba(255, 0, 85, 0.25); }
 
     .grid-sensors {
       display: grid;
@@ -100,19 +148,23 @@
       margin-top: 8px;
     }
     .btn:active { transform: scale(0.98); }
-    .btn-pulse { background: var(--pulse); color: #fff; }
     .btn-voice { background: #8b5cf6; color: #fff; }
     .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 6px 10px; font-size: 0.75rem; width: auto; margin-top: 0; }
+    .btn-save { background: var(--success); color: #000; padding: 10px; font-size: 0.85rem; }
 
-    input[type="password"] {
-      width: 100%;
-      background: rgba(0,0,0,0.5);
+    .key-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    input[type="text"] {
+      flex-grow: 1;
+      background: rgba(0,0,0,0.6);
       border: 1px solid rgba(255,255,255,0.15);
       color: #fff;
       padding: 10px;
       border-radius: 8px;
       font-size: 0.85rem;
-      margin-top: 8px;
     }
 
     .badge {
@@ -132,32 +184,33 @@
     <span class="badge" id="hubStatus">Inicjalizacja</span>
   </header>
 
-  <!-- WIZJA -->
+  <!-- WIZJA Z AKTYWNĄ WARSTWĄ ANALIZY HUD -->
   <div class="card" style="padding: 8px;">
     <div class="viewport-box">
       <video id="webcam" playsinline webkit-playsinline autoplay muted></video>
+      <canvas id="hudCanvas"></canvas>
       <canvas id="captureCanvas" class="hidden-canvas"></canvas>
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-      <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera tylna</span>
-      <div style="display: flex; gap: 6px;">
-        <button class="btn btn-sec" id="btnSwitchCam">Obróć obiektyw</button>
-      </div>
+      <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera tylna (Skaner aktywny)</span>
+      <button class="btn btn-sec" id="btnSwitchCam">Obróć obiektyw</button>
     </div>
   </div>
 
-  <!-- BIOMETRIA: OPTYCZNY POMIAR TĘTNA (PPG) -->
-  <div class="card" style="border-left: 4px solid var(--pulse);">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-weight: 700; font-size: 0.8rem; color: var(--pulse);">OPTYCZNY PULSOMETR KAMEROWY (PPG)</span>
-      <span id="pulseStatus" style="font-size: 0.75rem; color: var(--sub);">Przyłóż palec do obiektywu</span>
-    </div>
-    <canvas id="pulseCanvas"></canvas>
-    <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
-      <button class="btn btn-pulse" id="btnTogglePulse" style="margin-top: 0; width: 60%;">❤️ Mierz puls (PPG)</button>
-      <div class="sensor-item" style="flex-grow: 1; text-align: center;">
-        <div class="sensor-label">Tętno chwilowe</div>
-        <div class="sensor-val" id="valBpm" style="color: var(--pulse);">-- BPM</div>
+  <!-- WIRTUALNY KOMPAS GRAFICZNY -->
+  <div class="card" style="border-left: 4px solid var(--compass);">
+    <div style="font-weight: 700; font-size: 0.8rem; color: var(--compass); margin-bottom: 4px;">WIRTUALNY KOMPAS MAGNETYCZNY</div>
+    <div class="compass-container">
+      <div class="compass-dial">
+        <div class="compass-rose" id="compassRose">
+          <div class="compass-needle"></div>
+        </div>
+        <div class="compass-center"></div>
+      </div>
+      <div style="flex-grow: 1; margin-left: 20px;">
+        <div class="sensor-label">Azymut kierunkowy</div>
+        <div class="sensor-val" id="valCompass" style="font-size: 1.6rem; color: var(--compass);">0° N</div>
+        <div class="sensor-sub" id="valCompassDesc">Kalibracja magnetometru...</div>
       </div>
     </div>
   </div>
@@ -176,139 +229,128 @@
         <div class="sensor-sub">Siła bezwzględna</div>
       </div>
       <div class="sensor-item">
-        <div class="sensor-label">Przeciążenie</div>
-        <div class="sensor-val" id="valAccelVector">0.0 m/s²</div>
-        <div class="sensor-sub" id="valAxes">X:0 Y:0 Z:0</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MAGNETOMETR / KOMPAS & ŚWIATŁO -->
-  <div class="card" style="border-left: 4px solid var(--compass);">
-    <div style="font-weight: 700; font-size: 0.8rem; color: var(--compass); margin-bottom: 8px;">KOMPAS, ŚWIATŁO & AKUSTYKA</div>
-    <div class="grid-sensors">
-      <div class="sensor-item">
-        <div class="sensor-label">Azymut (Kompas)</div>
-        <div class="sensor-val" id="valCompass">--°</div>
-        <div class="sensor-sub" id="valCompassDir">Kierunek</div>
-      </div>
-      <div class="sensor-item">
-        <div class="sensor-label">Natężenie światła</div>
+        <div class="sensor-label">Światło (Luksomierz)</div>
         <div class="sensor-val" id="valLux">-- lx</div>
-        <div class="sensor-sub" id="valLuxTone">Widmo</div>
-      </div>
-      <div class="sensor-item">
-        <div class="sensor-label">Barwa (Kelwiny)</div>
-        <div class="sensor-val" id="valKelvin">-- K</div>
-        <div class="sensor-sub" id="valKelvinDesc">Odcień</div>
-      </div>
-      <div class="sensor-item">
-        <div class="sensor-label">Poziom hałasu</div>
-        <div class="sensor-val" id="valAudio">-- dB</div>
-        <div class="sensor-sub">Mikrofon laboratoryjny</div>
+        <div class="sensor-sub" id="valKelvin">-- K</div>
       </div>
     </div>
   </div>
 
-  <!-- STEROWANIE & AI -->
+  <!-- ZARZĄDZANIE KLUCZEM API Z FIZYCZNYM ZATWIERDZENIEM -->
+  <div class="card" style="border-left: 4px solid var(--success);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-weight: 700; font-size: 0.8rem; color: var(--success);">KLUCZ API GEMINI</span>
+      <span id="keyStatus" style="font-size: 0.75rem; color: var(--sub);">Brak zapisanego klucza</span>
+    </div>
+    <div class="key-input-row">
+      <input type="text" id="geminiApiKey" placeholder="Wklej klucz (AIzaSy...)">
+      <button class="btn btn-save" id="btnSaveKey" style="margin-top: 0; width: auto;">ZAPISZ</button>
+    </div>
+  </div>
+
+  <!-- STEROWANIE I ANALIZA WIDZENIA -->
   <div class="card">
     <div style="display: flex; gap: 8px;">
       <button class="btn" id="btnInitSensors" style="background: var(--success); margin-top: 0;">Uruchom sensory</button>
       <button class="btn btn-voice" id="btnVoiceAsk" style="margin-top: 0;">🎙️ Zapytaj głosem</button>
     </div>
-    <button class="btn" id="btnAnalyze">👁️ ANALIZUJ WSZYSTKIE SENSORY (GEMINI)</button>
-
-    <input type="password" id="geminiApiKey" placeholder="Wklej swój klucz API Gemini (AIzaSy...)">
+    <button class="btn" id="btnAnalyze">👁️ CO DOKŁADNIE WIDZISZ? (ANALIZA PRZEDMIOTÓW I SYLWETKI)</button>
   </div>
 
   <div class="card">
-    <div class="sensor-label" style="margin-bottom: 6px;">Raport diagnostyczny AI:</div>
-    <p id="aiOutput" style="font-size: 0.9rem; line-height: 1.4; color: #cbd5e1;">Kliknij analizę, aby zintegrować obraz, tętno, sejsmikę i kompas.</p>
+    <div class="sensor-label" style="margin-bottom: 6px;">Raport diagnostyczny AI (mówiony na głos):</div>
+    <p id="aiOutput" style="font-size: 0.9rem; line-height: 1.45; color: #cbd5e1;">Zapisz klucz API, nakieruj obiektyw na dowolne przedmioty lub sylwetkę i kliknij przycisk analizy.</p>
   </div>
 
   <script>
     const video = document.getElementById('webcam');
+    const hudCanvas = document.getElementById('hudCanvas');
+    const hudCtx = hudCanvas.getContext('2d');
     const capCanvas = document.getElementById('captureCanvas');
     const capCtx = capCanvas.getContext('2d');
     const seismoCanvas = document.getElementById('seismoCanvas');
     const seismoCtx = seismoCanvas.getContext('2d');
-    const pulseCanvas = document.getElementById('pulseCanvas');
-    const pulseCtx = pulseCanvas.getContext('2d');
 
     const apiKeyInput = document.getElementById('geminiApiKey');
+    const btnSaveKey = document.getElementById('btnSaveKey');
+    const keyStatus = document.getElementById('keyStatus');
     const aiOutput = document.getElementById('aiOutput');
     const hubStatus = document.getElementById('hubStatus');
     const camLabel = document.getElementById('camLabel');
 
-    // UI Referencje
-    const valImpact = document.getElementById('valImpact');
-    const valAccelVector = document.getElementById('valAccelVector');
-    const valAxes = document.getElementById('valAxes');
-    const seismoAlert = document.getElementById('seismoAlert');
+    // Kompas UI
+    const compassRose = document.getElementById('compassRose');
     const valCompass = document.getElementById('valCompass');
-    const valCompassDir = document.getElementById('valCompassDir');
+    const valCompassDesc = document.getElementById('valCompassDesc');
+
+    // Sejsmo & Światło UI
+    const valImpact = document.getElementById('valImpact');
+    const seismoAlert = document.getElementById('seismoAlert');
     const valLux = document.getElementById('valLux');
-    const valLuxTone = document.getElementById('valLuxTone');
     const valKelvin = document.getElementById('valKelvin');
-    const valKelvinDesc = document.getElementById('valKelvinDesc');
-    const valAudio = document.getElementById('valAudio');
-    const valBpm = document.getElementById('valBpm');
-    const pulseStatus = document.getElementById('pulseStatus');
 
     let currentFacingMode = "environment";
     let stream = null;
-    let videoTrack = null;
 
-    if (localStorage.getItem('gemini_api_key')) {
-      apiKeyInput.value = localStorage.getItem('gemini_api_key');
+    // 1. ZARZĄDZANIE KLUCZEM Z POTWIERDZENIEM
+    function refreshKeyStatus() {
+      const savedKey = localStorage.getItem('gemini_api_key');
+      if (savedKey && savedKey.startsWith('AIzaSy')) {
+        apiKeyInput.value = savedKey;
+        keyStatus.innerText = "Klucz aktywny i poprawny";
+        keyStatus.style.color = "var(--success)";
+      } else if (savedKey) {
+        apiKeyInput.value = savedKey;
+        keyStatus.innerText = "Format niepewny (musi zaczynać się od AIzaSy)";
+        keyStatus.style.color = "#ffaa00";
+      } else {
+        keyStatus.innerText = "Brak zapisanego klucza";
+        keyStatus.style.color = "#ff4444";
+      }
     }
-    apiKeyInput.addEventListener('input', () => {
-      localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+    refreshKeyStatus();
+
+    btnSaveKey.addEventListener('click', () => {
+      const val = apiKeyInput.value.trim();
+      if (!val) {
+        alert("Pole klucza jest puste!");
+        return;
+      }
+      localStorage.setItem('gemini_api_key', val);
+      refreshKeyStatus();
+      alert("Klucz został pomyślnie zapisany w pamięci Twojego telefonu.");
     });
 
     const telemetry = {
-      impactG: 0,
-      accel: { x: 0, y: 0, z: 0, total: 0 },
-      tilt: 0,
       compass: 0,
       compassDir: "N",
+      impactG: 0,
+      accelTotal: 0,
       lux: 0,
-      kelvin: 4000,
-      db: 40,
-      bpm: "--"
+      kelvin: 4000
     };
 
-    const seismoHistory = new Array(150).fill(35);
-    const pulseHistory = new Array(150).fill(35);
+    const seismoHistory = new Array(120).fill(32);
 
-    // 1. KAMERA Z OBSŁUGĄ LATARKI (TORCH) DO PULSOMETRU
+    // 2. KAMERA
     async function startCamera(facingMode) {
       hubStatus.innerText = "Łączenie z kamerą...";
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
         stream = null;
       }
-
-      const constraintsList = [
-        { video: { facingMode: { exact: facingMode } }, audio: false },
-        { video: { facingMode: facingMode }, audio: false },
-        { video: true, audio: false }
-      ];
-
-      for (let constraints of constraintsList) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-          video.srcObject = stream;
-          videoTrack = stream.getVideoTracks()[0];
-          await video.play();
-          hubStatus.innerText = "Kamera online";
-          camLabel.innerText = facingMode === "environment" ? "Kamera tylna" : "Kamera przednia";
-          return;
-        } catch (e) {}
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        hubStatus.innerText = "Kamera online";
+        camLabel.innerText = facingMode === "environment" ? "Kamera tylna (Skaner aktywny)" : "Kamera przednia (Skaner aktywny)";
+      } catch (e) {
+        hubStatus.innerText = "Błąd kamery";
       }
-
-      hubStatus.innerText = "Błąd kamery";
-      aiOutput.innerText = "Zezwól na dostęp do kamery w przeglądarce!";
     }
 
     document.getElementById('btnSwitchCam').addEventListener('click', async () => {
@@ -316,167 +358,116 @@
       await startCamera(currentFacingMode);
     });
 
-    // 2. OPTYCZNY PULSOMETR (PPG Z CZERWONYCH PIKSELI)
-    let isPulseActive = false;
-    let pulseInterval = null;
-    let redSamples = [];
-    let lastBeat = Date.now();
-    let beatTimes = [];
+    // 3. WARSTWA HUD ANALIZY WIZJI (Celownik, strefy detekcji, skanowanie sylwetki)
+    let scanLineY = 0;
+    function drawVisionHUD() {
+      hudCanvas.width = hudCanvas.clientWidth;
+      hudCanvas.height = hudCanvas.clientHeight;
+      hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 
-    document.getElementById('btnTogglePulse').addEventListener('click', async () => {
-      isPulseActive = !isPulseActive;
-      if (isPulseActive) {
-        document.getElementById('btnTogglePulse').innerText = "⏹️ Zatrzymaj pulsometr";
-        pulseStatus.innerText = "Zasłoń kamerę palcem...";
-        
-        // Włącz latarkę, jeśli dostępna w S23 Ultra
-        if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
-          try { await videoTrack.applyConstraints({ advanced: [{ torch: true }] }); } catch (e) {}
-        }
+      const w = hudCanvas.width;
+      const h = hudCanvas.height;
 
-        pulseInterval = setInterval(analyzePulseFrame, 40); // 25 Hz próbkowania
-      } else {
-        document.getElementById('btnTogglePulse').innerText = "❤️ Mierz puls (PPG)";
-        pulseStatus.innerText = "Zatrzymano";
-        clearInterval(pulseInterval);
-        if (videoTrack) {
-          try { await videoTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
-        }
-      }
-    });
+      // Linie celownika analitycznego
+      hudCtx.strokeStyle = "rgba(0, 229, 255, 0.4)";
+      hudCtx.lineWidth = 1.5;
 
-    function analyzePulseFrame() {
-      if (video.readyState < 2) return;
-      capCanvas.width = 32;
-      capCanvas.height = 32;
-      capCtx.drawImage(video, 0, 0, 32, 32);
-      const frame = capCtx.getImageData(0, 0, 32, 32);
-      const d = frame.data;
+      // Narożniki strefy głównej (Bounding Box sylwetki / obiektu)
+      const boxW = w * 0.7;
+      const boxH = h * 0.75;
+      const startX = (w - boxW) / 2;
+      const startY = (h - boxH) / 2;
 
-      let r = 0, g = 0, b = 0;
-      for (let i = 0; i < d.length; i += 4) {
-        r += d[i];
-        g += d[i+1];
-        b += d[i+2];
-      }
-      const avgR = r / (d.length / 4);
-      const avgG = g / (d.length / 4);
+      const corner = 24;
+      hudCtx.beginPath();
+      // Lewy górny
+      hudCtx.moveTo(startX, startY + corner); hudCtx.lineTo(startX, startY); hudCtx.lineTo(startX + corner, startY);
+      // Prawy górny
+      hudCtx.moveTo(startX + boxW - corner, startY); hudCtx.lineTo(startX + boxW, startY); hudCtx.lineTo(startX + boxW, startY + corner);
+      // Prawy dolny
+      hudCtx.moveTo(startX + boxW, startY + boxH - corner); hudCtx.lineTo(startX + boxW, startY + boxH); hudCtx.lineTo(startX + boxW - corner, startY + boxH);
+      // Lewy dolny
+      hudCtx.moveTo(startX + corner, startY + boxH); hudCtx.lineTo(startX, startY + boxH); hudCtx.lineTo(startX, startY + boxH - corner);
+      hudCtx.stroke();
 
-      // Czy palec zasłania obiektyw (duża przewaga czerwieni)
-      if (avgR > 130 && avgG < 80) {
-        pulseStatus.innerText = "Pomiar w toku... trzymaj stabilnie";
-        redSamples.push(avgR);
-        if (redSamples.length > 50) redSamples.shift();
+      // Przesuwna linia lasera skanującego
+      scanLineY += 2;
+      if (scanLineY > startY + boxH) scanLineY = startY;
+      hudCtx.strokeStyle = "rgba(0, 229, 255, 0.7)";
+      hudCtx.lineWidth = 1;
+      hudCtx.beginPath();
+      hudCtx.moveTo(startX, scanLineY);
+      hudCtx.lineTo(startX + boxW, scanLineY);
+      hudCtx.stroke();
 
-        // Rysowanie fali tętna
-        const waveY = Math.min(68, Math.max(2, 35 - (avgR - 180) * 1.5));
-        pulseHistory.push(waveY);
-        pulseHistory.shift();
-        drawPulseGraph();
+      // Napis telemetryczny wewnątrz kadru
+      hudCtx.fillStyle = "#00e5ff";
+      hudCtx.font = "10px monospace";
+      hudCtx.fillText("AI VISION SCANNER // AKTYWNY", startX + 6, startY + 14);
 
-        // Detekcja uderzenia (Peak detection)
-        const now = Date.now();
-        if (redSamples.length > 5 && avgR > redSamples[redSamples.length - 2] && (now - lastBeat) > 400) {
-          beatTimes.push(now);
-          lastBeat = now;
-          if (beatTimes.length > 8) beatTimes.shift();
-
-          if (beatTimes.length >= 4) {
-            const intervals = [];
-            for (let i = 1; i < beatTimes.length; i++) {
-              intervals.push(beatTimes[i] - beatTimes[i - 1]);
-            }
-            const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
-            const bpm = Math.round(60000 / avgInterval);
-            if (bpm >= 45 && bpm <= 180) {
-              telemetry.bpm = bpm;
-              valBpm.innerText = `${bpm} BPM`;
-            }
-          }
-        }
-      } else {
-        pulseStatus.innerText = "Przyłóż opuszkę palca do soczewki";
-      }
+      requestAnimationFrame(drawVisionHUD);
     }
+    requestAnimationFrame(drawVisionHUD);
 
-    function drawPulseGraph() {
-      pulseCanvas.width = pulseCanvas.clientWidth;
-      pulseCanvas.height = 70;
-      pulseCtx.clearRect(0, 0, pulseCanvas.width, pulseCanvas.height);
-      pulseCtx.strokeStyle = "#ff0055";
-      pulseCtx.lineWidth = 2;
-      pulseCtx.beginPath();
-      const step = pulseCanvas.width / pulseHistory.length;
-      for (let i = 0; i < pulseHistory.length; i++) {
-        const x = i * step;
-        const y = pulseHistory[i];
-        if (i === 0) pulseCtx.moveTo(x, y);
-        else pulseCtx.lineTo(x, y);
+    // 4. WIRTUALNY KOMPAS DLA S23 ULTRA (Obsługa absolutnej orientacji)
+    function setupCompassAndMotion() {
+      const handleOrientation = (e) => {
+        let heading = null;
+        if (e.webkitCompassHeading) {
+          heading = e.webkitCompassHeading;
+        } else if (e.alpha !== null) {
+          heading = 360 - e.alpha;
+        }
+
+        if (heading !== null) {
+          const deg = Math.round(heading);
+          telemetry.compass = deg;
+          
+          // Płynny obrót igły i tarczy kompasu
+          compassRose.style.transform = `rotate(${-deg}deg)`;
+
+          const dirs = ["N (Północ)", "NE", "E (Wschód)", "SE", "S (Południe)", "SW", "W (Zachód)", "NW"];
+          const index = Math.round(deg / 45) % 8;
+          telemetry.compassDir = dirs[index];
+
+          valCompass.innerText = `${deg}°`;
+          valCompassDesc.innerText = `Kierunek: ${dirs[index]}`;
+        }
+      };
+
+      if ('ondeviceorientationabsolute' in window) {
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation, true);
       }
-      pulseCtx.stroke();
-    }
 
-    // 3. SEJSMOGRAF & AKCELEROMETR
-    function setupMotion() {
+      // Sejsmograf
       window.addEventListener('devicemotion', (e) => {
         const acc = e.acceleration || e.accelerationIncludingGravity;
         if (!acc) return;
-
-        const x = acc.x || 0;
-        const y = acc.y || 0;
-        const z = acc.z || 0;
-
-        telemetry.accel.x = x.toFixed(2);
-        telemetry.accel.y = y.toFixed(2);
-        telemetry.accel.z = z.toFixed(2);
-
-        const total = Math.sqrt(x*x + y*y + z*z);
-        telemetry.accel.total = total.toFixed(2);
+        const total = Math.sqrt((acc.x||0)**2 + (acc.y||0)**2 + (acc.z||0)**2);
         const g = (total / 9.81).toFixed(2);
         telemetry.impactG = g;
+        telemetry.accelTotal = total.toFixed(2);
 
         valImpact.innerText = `${g} G`;
-        valAccelVector.innerText = `${telemetry.accel.total} m/s²`;
-        valAxes.innerText = `X:${telemetry.accel.x} Y:${telemetry.accel.y} Z:${telemetry.accel.z}`;
-
         if (g > 1.6) {
-          seismoAlert.innerText = "⚠️ WYKRYTO SILNY WSTRZĄS!";
-          seismoAlert.style.color = "#ff3366";
-        } else if (g > 1.15) {
-          seismoAlert.innerText = "DRGANIA / RUCH";
-          seismoAlert.style.color = "#ffbb00";
+          seismoAlert.innerText = "WSTRZĄS!";
+          seismoAlert.style.color = "var(--seismo)";
         } else {
-          seismoAlert.innerText = "SPOKÓJ SEJSMICZNY";
-          seismoAlert.style.color = "#10b981";
+          seismoAlert.innerText = "SPOKÓJ";
+          seismoAlert.style.color = "var(--success)";
         }
 
-        seismoHistory.push(Math.min(68, Math.max(2, 35 - (total - 9.81) * 3)));
+        seismoHistory.push(Math.min(62, Math.max(2, 32 - (total - 9.81) * 3)));
         seismoHistory.shift();
         drawSeismograph();
       });
-
-      // KOMPAS MAGNETYCZNY (MAGNETOMETER)
-      window.addEventListener('deviceorientationabsolute', handleCompass, true);
-      window.addEventListener('deviceorientation', handleCompass, true);
-    }
-
-    function handleCompass(e) {
-      let compass = e.webkitCompassHeading || e.alpha;
-      if (compass !== null && compass !== undefined) {
-        let deg = Math.round(compass);
-        telemetry.compass = deg;
-        valCompass.innerText = `${deg}°`;
-
-        const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-        const index = Math.round(deg / 45) % 8;
-        telemetry.compassDir = dirs[index];
-        valCompassDir.innerText = `Kierunek: ${dirs[index]}`;
-      }
     }
 
     function drawSeismograph() {
       seismoCanvas.width = seismoCanvas.clientWidth;
-      seismoCanvas.height = 70;
+      seismoCanvas.height = 65;
       seismoCtx.clearRect(0, 0, seismoCanvas.width, seismoCanvas.height);
       seismoCtx.strokeStyle = "#ff3366";
       seismoCtx.lineWidth = 1.5;
@@ -491,69 +482,29 @@
       seismoCtx.stroke();
     }
 
-    // 4. ANALIZA ŚWIATŁA Z OBRAZU (SPEKTROMETR)
+    // 5. ANALIZA ŚWIATŁA Z OBRAZU
     setInterval(() => {
-      if (isPulseActive || video.readyState < 2) return;
-
-      capCanvas.width = 64;
-      capCanvas.height = 48;
-      capCtx.drawImage(video, 0, 0, 64, 48);
-      const frame = capCtx.getImageData(0, 0, 64, 48);
-      const data = frame.data;
-
+      if (video.readyState < 2) return;
+      capCanvas.width = 48;
+      capCanvas.height = 36;
+      capCtx.drawImage(video, 0, 0, 48, 36);
+      const frame = capCtx.getImageData(0, 0, 48, 36).data;
       let r = 0, g = 0, b = 0;
-      const count = data.length / 4;
-      for (let i = 0; i < data.length; i += 4) {
-        r += data[i];
-        g += data[i+1];
-        b += data[i+2];
+      const count = frame.length / 4;
+      for (let i = 0; i < frame.length; i += 4) {
+        r += frame[i]; g += frame[i+1]; b += frame[i+2];
       }
-
       const avgR = r / count;
       const avgG = g / count;
       const avgB = b / count;
+      const lux = Math.round((0.299 * avgR + 0.587 * avgG + 0.114 * avgB) * 3.8);
+      const kelvin = Math.min(8000, Math.max(2400, Math.round(3000 + (1 / (avgR / (avgB + 1))) * 3500)));
 
-      const brightness = 0.299 * avgR + 0.587 * avgG + 0.114 * avgB;
-      telemetry.lux = Math.round(brightness * 3.8);
-      valLux.innerText = `${telemetry.lux} lx`;
-
-      if (telemetry.lux < 40) valLuxTone.innerText = "Ciemno";
-      else if (telemetry.lux < 350) valLuxTone.innerText = "Wnętrze";
-      else valLuxTone.innerText = "Jasny dzień";
-
-      const ratio = avgR / (avgB + 1);
-      let kelvin = Math.round(3000 + (1 / ratio) * 3500);
-      kelvin = Math.max(2200, Math.min(8500, kelvin));
+      telemetry.lux = lux;
       telemetry.kelvin = kelvin;
+      valLux.innerText = `${lux} lx`;
       valKelvin.innerText = `${kelvin} K`;
-
-      valKelvinDesc.innerText = kelvin < 3300 ? "Ciepłe żarowe" : (kelvin < 5300 ? "Neutralne białe" : "Zimne dzienne");
-    }, 400);
-
-    // 5. DECYBELOMIERZ (MIKROFON)
-    async function setupAudio() {
-      try {
-        const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const aCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const src = aCtx.createMediaStreamSource(aStream);
-        const an = aCtx.createAnalyser();
-        an.fftSize = 256;
-        src.connect(an);
-        const arr = new Uint8Array(an.frequencyBinCount);
-
-        function readAudio() {
-          an.getByteFrequencyData(arr);
-          let sum = 0;
-          for (let i = 0; i < arr.length; i++) sum += arr[i];
-          telemetry.db = Math.round(35 + (sum / arr.length / 255) * 60);
-          valAudio.innerText = `${telemetry.db} dB`;
-          requestAnimationFrame(readAudio);
-        }
-        readAudio();
-      } catch (e) {
-        valAudio.innerText = "Zablokowany";
-      }
-    }
+    }, 500);
 
     // 6. SYNTEZA MOWY
     function speak(text) {
@@ -565,47 +516,47 @@
       window.speechSynthesis.speak(u);
     }
 
-    // 7. AKTUALNY MODEL GEMINI FLASH Z PEŁNĄ TELEMETRIĄ
-    async function runGeminiAnalysis(userQuery = null) {
-      const apiKey = apiKeyInput.value.trim();
+    // 7. ZAAWANSOWANA ANALIZA PRZEDMIOTÓW I SYLWETKI W GEMINI
+    async function runActiveVisionAnalysis(userQuestion = null) {
+      const apiKey = localStorage.getItem('gemini_api_key') || apiKeyInput.value.trim();
       if (!apiKey) {
-        alert("Wklej swój klucz API Gemini z AI Studio!");
+        alert("Wklej i zatwierdź zielonym przyciskiem 'ZAPISZ' swój klucz API!");
         return;
       }
 
-      aiOutput.innerText = "⏳ Gemini przetwarza obraz i odczyty biometryczno-sejsmiczne...";
+      aiOutput.innerText = "⏳ Analizuję obraz i rozpoznaję obiekty, sylwetkę oraz otoczenie...";
 
       capCanvas.width = 640;
       capCanvas.height = 480;
       capCtx.drawImage(video, 0, 0, 640, 480);
-      const base64Img = capCanvas.toDataURL('image/jpeg', 0.75).split(',')[1];
+      const base64Img = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-      // Aktualne modele w kolejności dostępności
-      const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
+      // Lista modeli w kolejności wsparcia
+      const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
 
-      const telemetryReport = `
-TELEMETRIA SENSORÓW SAMSUNG GALAXY S23 ULTRA:
-- Puls użytkownika (optyczny PPG): ${telemetry.bpm} BPM
-- Sejsmograf / wstrząs: ${telemetry.impactG} G (Przeciążenie: ${telemetry.accel.total} m/s²)
-- Kompas / Azymut: ${telemetry.compass}° (${telemetry.compassDir})
-- Natężenie światła: ${telemetry.lux} lx
-- Temperatura barwowa światła: ${telemetry.kelvin} K (${valKelvinDesc.innerText})
-- Poziom hałasu: ${telemetry.db} dB`;
+      const telemetryContext = `
+DANE SENSORÓW ZE STACJI S23 ULTRA:
+- Azymut kompasu: ${telemetry.compass}° (${telemetry.compassDir})
+- Drgania sejsmiczne: ${telemetry.impactG} G
+- Światło otoczenia: ${telemetry.lux} lux (${telemetry.kelvin} K)`;
 
-      const instruction = userQuery 
-        ? `Użytkownik zapytał głosem: "${userQuery}". Odpowiedz opierając się na obrazie z kamery i powyższej telemetrii.`
-        : `Opisz co widzisz na obrazie i w maksymalnie 2 zwięzłych zdaniach podsumuj stan środowiska (światło, wstrząsy) oraz biometrię (puls jeśli dostępny).`;
+      const instruction = userQuestion
+        ? `Użytkownik zapytał głosem: "${userQuestion}". Odpowiedz bezpośrednio na to pytanie na podstawie obrazu.`
+        : `Dokonaj szczegółowej analizy wizualnej:
+1. Rozpoznaj i wymień z nazwy główne przedmioty w kadrze (na biurku, w ręku lub w tle).
+2. Jeśli w kadrze jest człowiek: oceń postawę, ułożenie rąk i odległość od kamery.
+3. Podsumuj w jakim kierunku świata skierowany jest telefon (${telemetry.compassDir}) i czy warunki oświetleniowe (${telemetry.lux} lx) są odpowiednie.`;
 
-      const prompt = `Jesteś laboratoryjnym analitykiem telemetrycznym stacji S23 Ultra.
-${telemetryReport}
+      const prompt = `Jesteś ekspertem analitycznym i diagnostą wizyjnym stacji badawczej.
+${telemetryContext}
 
 ${instruction}
 
-ZASADY: Odpowiedz po polsku w maksymalnie dwóch konkretnych zdaniach. Nie używaj formatowania markdown, gwiazdek ani punktorów — tekst zostanie odczytany na głos przez syntezator mowy.`;
+ZASADY: Odpowiedz po polsku w maksymalnie trzech konkretnych, naturalnych zdaniach. Twój tekst zostanie odczytany na głos — nie stosuj żadnych gwiazdek, punktorów ani formatowania markdown.`;
 
-      let success = false;
-      for (let model of candidateModels) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      let answered = false;
+      for (let m of models) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
         try {
           const res = await fetch(url, {
             method: 'POST',
@@ -619,44 +570,43 @@ ZASADY: Odpowiedz po polsku w maksymalnie dwóch konkretnych zdaniach. Nie używ
               }]
             })
           });
-
-          const json = await res.json();
-          if (json.candidates && json.candidates[0].content.parts[0]) {
-            const reply = json.candidates[0].content.parts[0].text.trim();
-            aiOutput.innerText = reply;
-            speak(reply);
-            success = true;
+          const data = await res.json();
+          if (data.candidates && data.candidates[0].content.parts[0]) {
+            const answer = data.candidates[0].content.parts[0].text.trim();
+            aiOutput.innerText = answer;
+            speak(answer);
+            answered = true;
             break;
-          } else if (json.error && json.error.code === 404) {
+          } else if (data.error && data.error.code === 404) {
             continue;
-          } else {
-            aiOutput.innerText = "Błąd API: " + JSON.stringify(json.error || json);
+          } else if (data.error) {
+            aiOutput.innerText = "Błąd API: " + data.error.message;
             return;
           }
-        } catch (err) {}
+        } catch (e) {}
       }
 
-      if (!success && !aiOutput.innerText.startsWith("Błąd API")) {
-        aiOutput.innerText = "Błąd połączenia z serwerem AI. Sprawdź poprawność klucza API.";
+      if (!answered && !aiOutput.innerText.startsWith("Błąd API")) {
+        aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że klucz API w polu powyżej jest poprawny.";
       }
     }
 
-    document.getElementById('btnAnalyze').addEventListener('click', () => runGeminiAnalysis());
+    document.getElementById('btnAnalyze').addEventListener('click', () => runActiveVisionAnalysis());
 
-    // 8. ROZPOZNAWANIE GŁOSU
+    // 8. ZAPYTAJ GŁOSEM
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (Speech) {
       const rec = new Speech();
       rec.lang = 'pl-PL';
       rec.onresult = (e) => {
         const query = e.results[0][0].transcript;
-        aiOutput.innerText = `Usłyszano: "${query}"`;
-        runGeminiAnalysis(query);
+        aiOutput.innerText = `Pytanie: "${query}"`;
+        runActiveVisionAnalysis(query);
       };
       document.getElementById('btnVoiceAsk').addEventListener('click', () => {
         try {
           rec.start();
-          aiOutput.innerText = "🎙️ Słucham... Zapytaj np. 'Jaki mam puls?' lub 'Co widać w kadrze?'";
+          aiOutput.innerText = "🎙️ Słucham pytania... Skieruj aparat na obiekt i mów";
         } catch (e) {}
       });
     }
@@ -665,8 +615,7 @@ ZASADY: Odpowiedz po polsku w maksymalnie dwóch konkretnych zdaniach. Nie używ
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
       }
-      setupMotion();
-      setupAudio();
+      setupCompassAndMotion();
       document.getElementById('btnInitSensors').style.display = 'none';
       hubStatus.innerText = "Wszystkie sensory online";
     });

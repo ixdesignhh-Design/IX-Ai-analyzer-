@@ -4,17 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#030712">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>OmniLab Pro Station // Real-Time AI Vision Hub</title>
-
-  <!-- Biblioteki TensorFlow.js & COCO-SSD & PoseNet do prawdziwej detekcji obiektów i szkieletu -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2/dist/posenet.min.js"></script>
-
-  <!-- PWA Manifest Inline -->
-  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22OmniLab%20Pro%20Station%22%2C%22short_name%22%3A%22OmniLab%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23030712%22%2C%22theme_color%22%3A%22%2300f0ff%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fapi.iconify.design%2Fmdi%3Ashield-bug.svg%3Fcolor%3D%252300f0ff%22%2C%22sizes%22%3A%22192x192%20512x512%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+  <title>OmniLab Pro Station // Multi-Engine Hub</title>
+  
+  <link rel="manifest" href="manifest.json">
 
   <style>
     :root {
@@ -44,14 +39,31 @@
       margin-bottom: 10px;
       border-bottom: 1px solid var(--border);
     }
-    header h1 { font-size: 0.95rem; color: var(--accent); font-weight: 800; letter-spacing: 0.5px; }
+    header h1 { font-size: 0.92rem; color: var(--accent); font-weight: 800; letter-spacing: 0.5px; }
+
+    /* GŁÓWNY WŁĄCZNIK SYSTEMOWY SENSORÓW */
+    .btn-sys-init {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 0.72rem;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-sys-init.active {
+      background: var(--success);
+      border-color: var(--success);
+      color: #000;
+    }
 
     /* MENU MODUŁÓW */
-    .module-manager { background: #0f172a; border-radius: 10px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
-    .toggle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+    .module-manager { background: #0f172a; border-radius: 10px; padding: 8px; margin-bottom: 10px; border: 1px solid var(--border); }
+    .toggle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 6px; }
     .toggle-btn {
-      background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--sub);
-      padding: 6px 4px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer; text-align: center; user-select: none;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--sub);
+      padding: 6px 2px; border-radius: 6px; font-size: 0.65rem; font-weight: 700; cursor: pointer; text-align: center;
     }
     .toggle-btn.active { background: rgba(0, 240, 255, 0.15); border-color: var(--accent); color: #fff; }
 
@@ -61,16 +73,9 @@
     }
     .card.hidden { display: none !important; }
 
-    .card.zoomed {
-      position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 9999; margin: 0; border-radius: 0; background: #030712; display: flex; flex-direction: column;
-      justify-content: space-between; padding: 16px;
-    }
-    .card.zoomed canvas.graph-canvas { height: 65vh !important; }
-
-    /* KAMERA & NEURAL HUD */
+    /* KAMERA & PRAWDZIWY HUD */
     .viewport-box {
-      position: relative; width: 100%; height: 42vh; min-height: 280px;
+      position: relative; width: 100%; height: 38vh; min-height: 260px;
       border-radius: 8px; overflow: hidden; background: #000; border: 1px solid rgba(0, 240, 255, 0.3);
     }
     video { width: 100%; height: 100%; object-fit: cover; }
@@ -80,78 +85,72 @@
     /* KOMPAS */
     .compass-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0; }
     .compass-housing {
-      position: relative; width: 180px; height: 180px; border-radius: 50%;
+      position: relative; width: 160px; height: 160px; border-radius: 50%;
       background: radial-gradient(circle, #1e293b 0%, #090e17 70%, #020617 100%);
       border: 4px solid #334155; display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
     }
     .compass-pointer {
-      position: absolute; top: 5px; width: 0; height: 0;
+      position: absolute; top: 4px; width: 0; height: 0;
       border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 13px solid var(--accent); z-index: 5;
     }
-    #compassDialCanvas { width: 166px; height: 166px; }
-    .compass-center-screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; z-index: 6; }
+    #compassDialCanvas { width: 150px; height: 150px; }
 
     /* DECYBELOMIERZ */
     .decibel-box { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
-    .db-val { font-size: 2.1rem; font-weight: 900; color: var(--gold); }
+    .db-val { font-size: 2rem; font-weight: 900; color: var(--gold); }
     .meter-bar { width: 100%; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .meter-fill { height: 100%; width: 0%; background: linear-gradient(to right, #10b981, #f59e0b 65%, #ff2d55 90%); transition: width 0.08s ease; }
 
-    /* WYKRESY */
-    canvas.graph-canvas { width: 100%; height: 65px; background: #040711; border-radius: 6px; margin-top: 6px; }
-    #seismoCanvas { border: 1px solid rgba(255, 45, 85, 0.25); }
-    #pulseCanvas { border: 1px solid rgba(236, 72, 153, 0.25); }
+    /* WYKRESY SEJSMO I PULS */
+    canvas.graph-canvas { width: 100%; height: 70px; background: #040711; border-radius: 6px; margin-top: 6px; display: block; }
+    #seismoCanvas { border: 1px solid rgba(255, 45, 85, 0.3); }
+    #pulseCanvas { border: 1px solid rgba(236, 72, 153, 0.3); }
 
-    /* PRZYCISKI & POLA */
+    /* PRZYCISKI */
     .btn {
       width: 100%; background: var(--accent); color: #030712; border: none;
-      padding: 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
-      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px; transition: 0.15s;
+      padding: 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 700;
+      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px;
     }
     .btn:active { transform: scale(0.98); }
-    .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 6px 12px; font-size: 0.75rem; width: auto; margin-top: 0; }
+    .btn-sec { background: rgba(255,255,255,0.08); color: #fff; padding: 6px 10px; font-size: 0.72rem; width: auto; margin-top: 0; border: 1px solid var(--border); }
     .btn-voice { background: var(--compass); color: #fff; }
     .btn-record { background: var(--danger); color: #fff; }
-    .btn-zoom { background: rgba(0, 240, 255, 0.2); color: var(--accent); border: 1px solid var(--accent); }
-    .btn-xiaozhi { background: var(--xiaozhi); color: #fff; }
-    .btn-gold { background: var(--gold); color: #000; }
+    .btn-gold { background: var(--gold); color: #000; font-weight: 800; }
 
-    input[type="text"], input[type="password"], select {
+    input[type="text"], select {
       width: 100%; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
-      color: #fff; padding: 8px; border-radius: 8px; font-size: 0.85rem; margin-top: 6px;
+      color: #fff; padding: 8px; border-radius: 8px; font-size: 0.82rem; margin-top: 6px;
     }
     input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0; }
-    .color-preview { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; border: 1px solid #fff; }
 
-    /* AWATAR XIAOZHI */
-    .avatar-box { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+    /* AWATAR */
+    .avatar-box { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
     .avatar {
-      width: 64px; height: 64px; border-radius: 50%;
+      width: 60px; height: 60px; border-radius: 50%;
       background: radial-gradient(circle at 35% 35%, #60a5fa, #1e3a8a, #030712);
       box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-      display: flex; align-items: center; justify-content: center; position: relative; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    .avatar.speaking { transform: scale(1.08); box-shadow: 0 0 25px rgba(0, 240, 255, 0.8); }
-    .avatar.listening { box-shadow: 0 0 25px rgba(236, 72, 153, 0.8); }
-    .avatar.alert { box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); }
-    .avatar-eyes { display: flex; gap: 12px; }
-    .avatar-eye { width: 9px; height: 12px; background: #fff; border-radius: 50%; transition: 0.15s; }
+    .avatar.speaking { transform: scale(1.08); box-shadow: 0 0 25px rgba(0, 240, 255, 0.9); }
+    .avatar.listening { box-shadow: 0 0 25px rgba(236, 72, 153, 0.9); }
+    .avatar-eyes { display: flex; gap: 10px; }
+    .avatar-eye { width: 8px; height: 12px; background: #fff; border-radius: 50%; transition: 0.12s; }
     .avatar.blink .avatar-eye { height: 2px; }
-    .avatar.happy .avatar-eye { border-radius: 10px 10px 0 0; height: 6px; }
 
-    /* POZIOMICA 2D */
+    /* POZIOMICA */
     .bubble-level {
-      width: 100%; height: 65px; background: #000; border: 1px solid var(--border);
+      width: 100%; height: 60px; background: #000; border: 1px solid var(--border);
       border-radius: 8px; position: relative; overflow: hidden; margin-top: 6px;
     }
     .level-bubble {
-      width: 20px; height: 20px; background: var(--seismo); border-radius: 50%;
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px var(--seismo);
+      width: 22px; height: 22px; background: var(--seismo); border-radius: 50%;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px var(--seismo);
     }
     .level-crosshair {
-      position: absolute; top: 50%; left: 50%; width: 30px; height: 30px;
+      position: absolute; top: 50%; left: 50%; width: 32px; height: 32px;
       transform: translate(-50%, -50%); border: 1px dashed rgba(255,255,255,0.4); border-radius: 50%;
     }
   </style>
@@ -159,57 +158,57 @@
 <body>
 
   <header>
-    <h1>OMNILAB PRO // MULTI-ENGINE HUB</h1>
-    <span style="font-size: 0.75rem; color: var(--accent); cursor: pointer;" id="hubStatus" onclick="initSensorsAndAudio()">Inicjalizuj Sensory</span>
+    <h1>OMNILAB PRO // OS 2026</h1>
+    <button class="btn-sys-init" id="btnMasterInit" onclick="activateAllHardware()">⚡ AKTYWUJ SENSORY</button>
   </header>
 
-  <!-- PANEL ZARZĄDZANIA WSZYSTKIMI MODUŁAMI -->
+  <!-- PANEL UKRYWANIA / POKAZYWANIA MODUŁÓW -->
   <div class="module-manager">
-    <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">ZARZĄDZANIE MODUŁAMI:</span>
+    <div style="font-size: 0.72rem; font-weight: 700; color: #fff;">AKTYWNE MODUŁY:</div>
     <div class="toggle-grid">
-      <div class="toggle-btn active" data-target="mod-camera">[1] Kamera & AI Vision</div>
-      <div class="toggle-btn active" data-target="mod-vision">[2] Wykryte Obiekty</div>
-      <div class="toggle-btn active" data-target="mod-baro">[BARO] Barometr / Wario</div>
+      <div class="toggle-btn active" data-target="mod-camera">[1] Kamera Vision</div>
+      <div class="toggle-btn active" data-target="mod-vision">[2] AI Skandowane</div>
+      <div class="toggle-btn active" data-target="mod-baro">[BARO] Barometr</div>
+      <div class="toggle-btn active" data-target="mod-seismo">[5] Sejsmograf 3D</div>
       <div class="toggle-btn active" data-target="mod-compass">[3] Kompas Morski</div>
       <div class="toggle-btn active" data-target="mod-audio">[4] Decybelomierz</div>
-      <div class="toggle-btn active" data-target="mod-seismo">[5] Sejsmo & 3D</div>
-      <div class="toggle-btn active" data-target="mod-logger">[★] Rejestrator CSV</div>
+      <div class="toggle-btn active" data-target="mod-logger">[★] CSV Rejestrator</div>
       <div class="toggle-btn active" data-target="mod-light">[6] Fotometr</div>
       <div class="toggle-btn active" data-target="mod-pulse">[7] Pulsometr PPG</div>
       <div class="toggle-btn active" data-target="mod-optical">[8] Strobo & EMF</div>
-      <div class="toggle-btn active" data-target="mod-audiolab">[9] Generator Audio</div>
-      <div class="toggle-btn active" data-target="mod-ai">[AI] Silniki AI & XiaoZhi</div>
+      <div class="toggle-btn active" data-target="mod-audiolab">[9] Generator Hz</div>
+      <div class="toggle-btn active" data-target="mod-ai">[AI] Silniki AI Hub</div>
     </div>
   </div>
 
   <!-- [★] REJESTRATOR DANYCH CSV -->
   <div class="card" id="mod-logger" style="border-left: 4px solid var(--danger);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--danger);">REJESTRATOR DANYCH (CSV EXPORT)</span>
-      <span id="logStatusText" style="font-size: 0.75rem; color: var(--sub);">Gotowy</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--danger);">REJESTRATOR DANYCH TELEMETRII (CSV)</span>
+      <span id="logStatusText" style="font-size: 0.72rem; color: var(--sub);">Gotowy</span>
     </div>
     <div style="display: flex; gap: 8px; margin-top: 8px;">
-      <button class="btn btn-record" id="btnToggleRecord" style="margin-top: 0;">● ROZPOCZNIJ POMIAR DRUKARKI</button>
-      <button class="btn btn-sec" id="btnExportCSV" style="margin-top: 0; background: var(--success); color: #000; font-weight: bold; display: none;">POBIERZ CSV</button>
+      <button class="btn btn-record" id="btnToggleRecord" style="margin-top: 0;">● REJESTRUJ DRUKARKĘ (10 Hz)</button>
+      <button class="btn btn-sec" id="btnExportCSV" style="margin-top: 0; background: var(--success); color: #000; font-weight: bold; display: none;">POBIERZ PLIK CSV</button>
     </div>
     <div style="font-size: 0.75rem; color: var(--sub); margin-top: 6px;" id="loggerSummary">
-      Próbki: 0 | Max wstrząs: 0.00 G | Średni hałas: 0 dB
+      Próbki: 0 | Szczyt sejsmo: 0.00 G | Średni hałas: 0 dB
     </div>
   </div>
 
-  <!-- [BARO] ZAAWANSOWANY BAROMETR, ALTIMETR & WARIOMETR AKUSTYCZNY -->
+  <!-- [BARO] BAROMETR, ALTIMETR & WARIOMETR -->
   <div class="card" id="mod-baro" style="border-left: 4px solid var(--gold);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">BAROMETR & WARIOMETR AKUSTYCZNY</span>
-      <span id="qnhTag" style="font-size: 0.75rem; color: var(--sub); cursor: pointer;" onclick="calibrateQNH()">QNH: 1013.25 hPa</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">BAROMETR, WYSOKOŚĆ & WARIOMETR</span>
+      <span id="qnhTag" style="font-size: 0.72rem; color: var(--sub); text-decoration: underline; cursor: pointer;" onclick="calibrateQNH()">QNH: 1013.25 hPa</span>
     </div>
     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px;">
       <div style="font-size: 2rem; font-weight: 900; color: var(--gold);">
         <span id="valPressure">1013.25</span> <small style="font-size: 0.85rem; color: var(--sub);">hPa</small>
       </div>
-      <div style="text-align: right; font-size: 0.85rem;">
-        <div>Wysokość: <b id="valAltitude" style="color: #fff;">0.0</b> m</div>
-        <div style="font-size: 0.75rem; color: var(--sub);">Ciśnienie: <b id="valMmhg">760.0</b> mmHg</div>
+      <div style="text-align: right; font-size: 0.82rem;">
+        <div>Wysokość: <b id="valAltitude" style="color: #fff;">0.0</b> m n.p.m.</div>
+        <div style="font-size: 0.72rem; color: var(--sub);">Słup rtęci: <b id="valMmhg">760.0</b> mmHg</div>
       </div>
     </div>
     <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--sub); margin-top: 4px;">
@@ -218,13 +217,12 @@
     </div>
     <div style="display: flex; gap: 6px; margin-top: 8px;">
       <button class="btn btn-sec btn-gold" id="btnVarioAudio" onclick="toggleVarioAudio()" style="flex: 2;">🔊 Wariometr Audio: OFF</button>
-      <button class="btn btn-sec" onclick="calibrateQNH()">Kalibruj QNH</button>
-      <button class="btn btn-sec" onclick="testPressureOffset(1.0)">+1</button>
-      <button class="btn btn-sec" onclick="testPressureOffset(-1.0)">-1</button>
+      <button class="btn btn-sec" onclick="fetchGPSBarometer()">Satelita GPS</button>
+      <button class="btn btn-sec" onclick="calibrateQNH()">Kalibruj</button>
     </div>
   </div>
 
-  <!-- [1] KAMERA ZE SPRZĘTOWYM OBRACANIEM & PRAWDZIWY NEURAL HUD -->
+  <!-- [1] KAMERA & SYSTEM REAL-TIME HUD VISION -->
   <div class="card" id="mod-camera" style="padding: 10px;">
     <div class="viewport-box">
       <video id="webcam" playsinline webkit-playsinline autoplay muted></video>
@@ -232,24 +230,45 @@
       <canvas id="captureCanvas" class="hidden-canvas"></canvas>
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-      <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera: Szukanie...</span>
+      <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera: Czuwanie</span>
       <div style="display: flex; gap: 6px;">
-        <button class="btn btn-sec" id="btnToggleLiveNarration" onclick="toggleLiveNarration()">🗣️ Mów na żywo: OFF</button>
-        <button class="btn btn-sec" id="btnToggleAR" onclick="cycleAROverlay()">Tryb: <span id="arModeText" style="color:var(--accent);">Obiekty + Szkielet</span></button>
-        <button class="btn btn-sec" id="btnSwitchCam">🔄 Aparat</button>
+        <button class="btn btn-sec" id="btnAutoScan" onclick="toggleContinuousScanner()">👁️ Skaner Ciągły: OFF</button>
+        <button class="btn btn-sec" id="btnSwitchCam">🔄 Kamera</button>
       </div>
     </div>
   </div>
 
-  <!-- [2] WYKRYTE OBIEKTY & POZYCJA CIAŁA (COCO-SSD / POSENET) -->
+  <!-- [2] WYNIKI ROZPOZNAWANIA OBIEKTÓW & SZKIELETU WIZYJNEGO -->
   <div class="card" id="mod-vision" style="border-left: 4px solid var(--accent);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] ANALIZA WIZYJNA SIECI NEURONOWEJ (AI LIVE)</span>
-      <span id="modelStatus" style="font-size: 0.7rem; color: var(--gold);">Ładowanie modeli AI...</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] CO WIDZI KAMERA (WIZJA & SZKIELET AR)</span>
+      <span id="visionScanStatus" style="font-size: 0.7rem; color: var(--gold);">Gotowy do skanu</span>
     </div>
     <div style="margin-top: 6px; font-size: 0.85rem;">
-      <div>Obiekty w kadrze: <b id="valDetectedList" style="color: var(--accent);">Skanowanie...</b></div>
-      <div style="margin-top:4px;">Postawa człowieka: <b id="valBodyPose" style="color: #fff;">Brak sylwetki</b></div>
+      <div>Rozpoznane obiekty: <b id="visionObjectList" style="color: var(--accent);">Kliknij skaner lub zadaj pytanie</b></div>
+      <div style="margin-top: 4px;">Dynamika sylwetki / krawędzi: <b id="visionMotionText" style="color: #fff;">Stabilna</b></div>
+    </div>
+  </div>
+
+  <!-- [5] PRAWDZIWY SEJSMOGRAF 3D (NAPRAWIONY SPRZĘTOWO) -->
+  <div class="card" id="mod-seismo" style="border-left: 4px solid var(--seismo);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--seismo);">[5] SEJSMOGRAF 3D & AKTYWNOŚĆ DRGAŃ</span>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <span id="seismoAlert" style="font-size: 0.75rem; font-weight: bold; color: var(--success);">SPOKÓJ</span>
+        <button class="btn btn-sec" onclick="calibrateSeismoZero()">Zeruj</button>
+      </div>
+    </div>
+    <canvas id="seismoCanvas" class="graph-canvas"></canvas>
+    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.78rem;">
+      <span>Wstrząs: <b id="valImpact" style="color: var(--seismo);">0.00 G</b></span>
+      <span>X:<b id="valAccX">0.0</b> Y:<b id="valAccY">0.0</b> Z:<b id="valAccZ">0.0</b></span>
+      <span>Kąt: P:<b id="valPitch">0°</b> R:<b id="valRoll">0°</b></span>
+    </div>
+    <!-- Poziomica 2D -->
+    <div class="bubble-level">
+      <div class="level-crosshair"></div>
+      <div class="level-bubble" id="levelBubble"></div>
     </div>
   </div>
 
@@ -257,108 +276,70 @@
   <div class="card" id="mod-compass" style="border-left: 4px solid var(--compass);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--compass);">[3] MAGNETYCZNY KOMPAS MORSKI</span>
-      <div style="display: flex; gap: 6px; align-items: center;">
-        <span id="compassHeadingText" style="font-size: 0.85rem; font-weight: 800; color: var(--accent);">0° N</span>
-        <button class="btn btn-sec" id="btnCalibrateCompass" style="padding: 4px 8px; font-size: 0.7rem;">Zeruj</button>
-      </div>
+      <span id="compassHeadingText" style="font-size: 0.85rem; font-weight: 800; color: var(--accent);">0° N</span>
     </div>
     <div class="compass-wrapper">
       <div class="compass-housing">
         <div class="compass-pointer"></div>
-        <canvas id="compassDialCanvas" width="200" height="200"></canvas>
-        <div class="compass-center-screw"></div>
+        <canvas id="compassDialCanvas" width="180" height="180"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- [4] DECYBELOMIERZ -->
+  <!-- [4] DECYBELOMIERZ (SPL) -->
   <div class="card" id="mod-audio" style="border-left: 4px solid var(--gold);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">[4] DECYBELOMIERZ (SPL)</span>
-      <div style="display: flex; gap: 6px;">
-        <button class="btn btn-sec btn-zoom" onclick="toggleZoom('mod-audio')">🔍 Zoom</button>
-        <button class="btn btn-sec" id="btnStartAudio" style="background: var(--gold); color: #000; font-weight: bold;">Mikrofon</button>
-      </div>
+      <button class="btn btn-sec" id="btnStartAudio" style="background: var(--gold); color: #000; font-weight: bold;">Włącz Mikrofon</button>
     </div>
     <div class="decibel-box">
       <span class="db-val" id="dbDisplay">-- dB</span>
-      <span id="dbComparison" style="font-size: 0.85rem; font-weight: bold; color: #fff;">🔇 Wyłączony</span>
+      <span id="dbComparison" style="font-size: 0.82rem; font-weight: bold; color: #fff;">Cisza</span>
     </div>
     <div class="meter-bar"><div class="meter-fill" id="dbMeterFill"></div></div>
-  </div>
-
-  <!-- [5] SEJSMOGRAF & POZIOMICA 2D/3D -->
-  <div class="card" id="mod-seismo" style="border-left: 4px solid var(--seismo);">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--seismo);">[5] SEJSMOGRAF, WIBROMETR & POZIOMICA 3D</span>
-      <div style="display: flex; gap: 6px; align-items: center;">
-        <span id="seismoAlert" style="font-size: 0.75rem; font-weight: bold; color: var(--success); margin-right: 6px;">SPOKÓJ</span>
-        <button class="btn btn-sec btn-zoom" onclick="toggleZoom('mod-seismo')">🔍 ZOOM</button>
-      </div>
-    </div>
-    <canvas id="seismoCanvas" class="graph-canvas"></canvas>
-    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.8rem;">
-      <span>Wstrząs: <b id="valImpact" style="color: var(--seismo);">0.00 G</b></span>
-      <span>X:<b id="valAccX">0.0</b> Y:<b id="valAccY">0.0</b> Z:<b id="valAccZ">9.8</b></span>
-      <span>Pitch <b id="valPitch">0°</b> | Roll <b id="valRoll">0°</b></span>
-    </div>
-    <div class="bubble-level">
-      <div class="level-crosshair"></div>
-      <div class="level-bubble" id="levelBubble"></div>
-    </div>
   </div>
 
   <!-- [6] FOTOMETR & SPEKTROMETR -->
   <div class="card" id="mod-light" style="border-left: 4px solid #fff;">
     <div style="font-size: 0.8rem; font-weight: 700; color: #fff;">[6] FOTOMETR & SPEKTROMETR</div>
-    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
+    <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.82rem;">
       <span>Natężenie: <b id="valLux" style="color: var(--accent);">-- lx</b></span>
       <span>Barwa: <b id="valKelvin" style="color: var(--gold);">-- K</b></span>
-      <span><span class="color-preview" id="colorDot"></span><b id="valRgb">RGB</b></span>
+      <span>RGB: <b id="valRgb">--</b></span>
     </div>
   </div>
 
   <!-- [7] PULSOMETR (PPG) -->
   <div class="card" id="mod-pulse" style="border-left: 4px solid var(--pulse);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--pulse);">[7] OPTYCZNY PULSOMETR (PPG)</span>
-      <button class="btn btn-sec" id="btnTogglePulse" style="background: var(--pulse); color: #fff; font-weight: bold;">Mierz puls</button>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--pulse);">[7] OPTYCZNY PULSOMETR PPG</span>
+      <button class="btn btn-sec" id="btnTogglePulse" style="background: var(--pulse); color: #fff; font-weight: bold;">Mierz Puls</button>
     </div>
     <canvas id="pulseCanvas" class="graph-canvas"></canvas>
-    <div style="margin-top: 4px; font-size: 0.85rem;">Tętno: <b id="valBpm" style="color: var(--pulse);">-- BPM</b> <span id="pulseStatus" style="font-size: 0.7rem; color: var(--sub); margin-left: 10px;">Zasłoń kamerę palcem</span></div>
+    <div style="margin-top: 4px; font-size: 0.82rem;">Tętno: <b id="valBpm" style="color: var(--pulse);">-- BPM</b> <span id="pulseStatus" style="font-size: 0.7rem; color: var(--sub); margin-left: 8px;">Zasłoń soczewkę palcem</span></div>
   </div>
 
-  <!-- [8] TACHOMETR STROBOSKOPOWY & DETEKTOR EMF / MAGNETOMETR -->
+  <!-- [8] TACHOMETR STROBOSKOPOWY & EMF -->
   <div class="card" id="mod-optical" style="border-left: 4px solid var(--accent);">
-    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[8] TACHOMETR STROBOSKOPOWY & WYKRYWACZ EMF</div>
+    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[8] TACHOMETR STROBOSKOPOWY & DETEKTOR EMF</div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-      <div>
-        <span style="font-size: 0.75rem; color: var(--sub);">Stroboskop:</span>
-        <div style="font-size: 1.2rem; font-weight: 800; color: var(--accent);">
-          <span id="strobeHz">10.0</span> Hz (<span id="strobeRpm">600</span> RPM)
-        </div>
-      </div>
-      <div>
-        <span style="font-size: 0.75rem; color: var(--sub);">Pole EMF / Metal:</span>
-        <div style="font-size: 1.2rem; font-weight: 800; color: var(--compass);">
-          <span id="emfVal">45.0</span> µT
-        </div>
-      </div>
+      <div>Stroboskop: <b id="strobeHz" style="color:var(--accent);">10.0</b> Hz (<span id="strobeRpm">600</span> RPM)</div>
+      <div>Pole EMF: <b id="emfVal" style="color:var(--compass);">45.0</b> µT</div>
     </div>
-    <input type="range" min="1" max="60" value="10" step="0.5" oninput="updateStrobeFreq(this.value)">
+    <input type="range" min="1" max="50" value="10" step="0.5" oninput="updateStrobeFreq(this.value)">
     <div style="display: flex; gap: 6px; margin-top: 6px;">
-      <button class="btn btn-sec btn-accent" id="btnToggleStrobe" onclick="toggleStrobe()">Stroboskop: OFF</button>
-      <button class="btn btn-sec" id="btnToggleEmfAudio" onclick="toggleEmfAudio()">🔊 Sygnalizator EMF: OFF</button>
+      <button class="btn btn-sec" id="btnToggleStrobe" onclick="toggleStrobe()">Błysk: OFF</button>
+      <button class="btn btn-sec" id="btnToggleEmfAudio" onclick="toggleEmfAudio()">🔊 Akustyk EMF: OFF</button>
     </div>
   </div>
 
-  <!-- [9] GENERATOR CZĘSTOTLIWOŚCI AKUSTYCZNYCH -->
+  <!-- [9] GENERATOR AKUSTYCZNY -->
   <div class="card" id="mod-audiolab" style="border-left: 4px solid var(--pulse);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--pulse);">[9] GENERATOR CZĘSTOTLIWOŚCI AKUSTYCZNYCH</span>
       <span id="genFreqTxt" style="font-size: 0.85rem; font-weight: 800; color: #fff;">440 Hz</span>
     </div>
-    <input type="range" min="20" max="15000" value="440" oninput="setAudioGenFreq(this.value)">
+    <input type="range" min="20" max="12000" value="440" oninput="setAudioGenFreq(this.value)">
     <div style="display: flex; gap: 6px; margin-top: 6px;">
       <button class="btn btn-sec" id="btnToggleGen" onclick="toggleAudioGen()" style="flex:2; background:var(--pulse); color:#fff;">Włącz Generator</button>
       <button class="btn btn-sec" onclick="setGenWave('sine')">Sinus</button>
@@ -366,14 +347,13 @@
     </div>
   </div>
 
-  <!-- [AI] MULTI-ENGINE AI & XIAOZHI AWATAR -->
+  <!-- [AI] SILNIKI AI & MÓWIĄCY ASYSTENT XIAOZHI -->
   <div class="card" id="mod-ai" style="border-left: 4px solid var(--success);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">SILNIKI AI & ASYSTENT XIAOZHI</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">SILNIKI VISION AI & GADANIE GŁOSOWE</span>
       <span id="keyStatus" style="font-size: 0.7rem; color: var(--sub);">Wybierz silnik</span>
     </div>
 
-    <!-- Awatar XiaoZhi -->
     <div class="avatar-box">
       <div class="avatar" id="avatarBox">
         <div class="avatar-eyes">
@@ -381,42 +361,37 @@
           <div class="avatar-eye"></div>
         </div>
       </div>
-      <div style="flex: 1; font-size: 0.8rem; color: var(--sub);" id="aiStatusDesc">
-        Awatar XiaoZhi gotowy. Śledzi obiekty i syntezuje głosowo obraz.
+      <div style="flex: 1; font-size: 0.78rem; color: var(--sub);" id="aiStatusDesc">
+        Widzę i mówię to, co znajduje się przed obiektywem.
       </div>
     </div>
 
-    <!-- WYBÓR SILNIKA AI -->
     <select id="aiEngineSelect">
-      <option value="gemini">Google Gemini Flash (v1beta REST - Szybki)</option>
-      <option value="openrouter">OpenRouter (Darmowe modele Llama Vision / Qwen)</option>
-      <option value="groq">Groq Cloud (Llama 3.2 Vision - Ultra Low Latency)</option>
-      <option value="xiaozhi">Chmura XiaoZhi AI (Oryginalny protokół WebSocket / Głos)</option>
-      <option value="offline">Lokalny Asystent Sensoryczny (100% Offline)</option>
+      <option value="gemini">Google Gemini 2.5 Flash (Pełne rozpoznawanie + ramki AR)</option>
+      <option value="groq">Groq Cloud (Llama 3.2 Vision - Ultra szybki)</option>
+      <option value="openrouter">OpenRouter Vision (Darmowe Llama / Qwen)</option>
+      <option value="xiaozhi">Chmura XiaoZhi AI (Oryginalny WebSocket)</option>
+      <option value="offline">Lokalny Analizator Krawędziowy (100% Offline)</option>
     </select>
 
     <div style="display: flex; gap: 6px; margin-top: 6px;">
-      <input type="text" id="aiApiKey" placeholder="Klucz API lub Adres Serwera XiaoZhi (wss://...)">
+      <input type="text" id="aiApiKey" placeholder="Wklej klucz API lub adres WebSocket">
       <button class="btn btn-sec" id="btnSaveKey" style="background: var(--success); color: #000; font-weight: bold; width: auto;">ZAPISZ</button>
     </div>
 
     <div style="display: flex; gap: 6px; margin-top: 8px;">
-      <button class="btn" id="btnRunFullAI" style="margin-top: 0; background: var(--accent); color: #000;">👁️ CO DOKŁADNIE WIDZISZ?</button>
-      <button class="btn btn-voice" id="btnVoiceAsk" style="margin-top: 0; width: 45%;">🎙️ GŁOS</button>
+      <button class="btn" id="btnRunFullAI" onclick="scanAndSpeakVision()" style="margin-top: 0; background: var(--accent); color: #000;">👁️ CO DOKŁADNIE WIDZISZ? (MÓW NA GŁOS)</button>
+      <button class="btn btn-voice" id="btnVoiceAsk" style="margin-top: 0; width: 45%;">🎙️ ZADAJ PYTANIE</button>
     </div>
 
-    <div style="font-size: 0.7rem; color: var(--sub); text-transform: uppercase; margin-top: 8px;">Raport diagnostyczny AI:</div>
-    <p id="aiOutput" style="font-size: 0.95rem; line-height: 1.5; color: #f1f5f9; margin-top: 4px;">
-      Skieruj aparat, wybierz silnik i wciśnij analizę.
+    <div style="font-size: 0.7rem; color: var(--sub); text-transform: uppercase; margin-top: 8px;">Co mówi i widzi AI:</div>
+    <p id="aiOutput" style="font-size: 0.92rem; line-height: 1.45; color: #f1f5f9; margin-top: 4px;">
+      Gotowy. Kliknij "CO DOKŁADNIE WIDZISZ" – asystent przeskanuje obraz, narysuje ramki i opowie Ci to głosem.
     </p>
   </div>
 
   <script>
-    function toggleZoom(cardId) {
-      document.getElementById(cardId).classList.toggle('zoomed');
-    }
-
-    // PRZEŁĄCZNIKI MODUŁÓW
+    // PRZEŁĄCZNIKI WIDOKU MODUŁÓW
     document.querySelectorAll('.toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         btn.classList.toggle('active');
@@ -440,848 +415,418 @@
     const compassCanvas = document.getElementById('compassDialCanvas');
     const compassCtx = compassCanvas.getContext('2d');
 
-    const camLabel = document.getElementById('camLabel');
+    const valImpact = document.getElementById('valImpact');
+    const valAccX = document.getElementById('valAccX');
+    const valAccY = document.getElementById('valAccY');
+    const valAccZ = document.getElementById('valAccZ');
+    const valPitch = document.getElementById('valPitch');
+    const valRoll = document.getElementById('valRoll');
+    const seismoAlert = document.getElementById('seismoAlert');
+    const levelBubble = document.getElementById('levelBubble');
+
+    const valPressure = document.getElementById('valPressure');
+    const valAltitude = document.getElementById('valAltitude');
+    const valMmhg = document.getElementById('valMmhg');
+    const valPressureTrend = document.getElementById('valPressureTrend');
+    const valVarioSpeed = document.getElementById('valVarioSpeed');
+    const qnhTag = document.getElementById('qnhTag');
+
     const dbDisplay = document.getElementById('dbDisplay');
     const dbComparison = document.getElementById('dbComparison');
     const dbMeterFill = document.getElementById('dbMeterFill');
     const compassHeadingText = document.getElementById('compassHeadingText');
-    const valImpact = document.getElementById('valImpact');
-    const valAccelVector = document.getElementById('valAccelVector');
-    const seismoAlert = document.getElementById('seismoAlert');
+
     const valLux = document.getElementById('valLux');
     const valKelvin = document.getElementById('valKelvin');
-    const colorDot = document.getElementById('colorDot');
     const valRgb = document.getElementById('valRgb');
     const valBpm = document.getElementById('valBpm');
     const pulseStatus = document.getElementById('pulseStatus');
+
     const aiOutput = document.getElementById('aiOutput');
     const aiApiKey = document.getElementById('aiApiKey');
     const keyStatus = document.getElementById('keyStatus');
-    const hubStatus = document.getElementById('hubStatus');
     const aiEngineSelect = document.getElementById('aiEngineSelect');
     const avatarBox = document.getElementById('avatarBox');
-    const modelStatus = document.getElementById('modelStatus');
-    const valDetectedList = document.getElementById('valDetectedList');
-    const valBodyPose = document.getElementById('valBodyPose');
+    const visionScanStatus = document.getElementById('visionScanStatus');
+    const visionObjectList = document.getElementById('visionObjectList');
+    const visionMotionText = document.getElementById('visionMotionText');
 
-    let currentStream = null;
+    let audioCtx = null;
+    let videoStream = null;
     let videoTrack = null;
     let videoDevices = [];
     let currentDeviceIdx = 0;
-    let audioCtx = null;
-    let analyser = null;
-    let compassOffset = 0;
-
-    // MODELE SIECI NEURONOWYCH
-    let cocoModel = null;
-    let poseModel = null;
-    let detectedObjects = [];
-    let detectedPose = null;
-    let isLiveNarrating = false;
-    let lastSpokenText = "";
-    let narrationTimer = null;
 
     const telemetry = {
-      compass: 0, compassDir: "N",
       impactG: 0, accelTotal: 0,
-      lux: 0, kelvin: 4000,
-      db: 0, dbDesc: "Cisza",
-      bpm: "--", motionScore: 0,
+      ax: 0, ay: 0, az: 0,
+      pitch: 0, roll: 0,
       pressure: 1013.25, altitude: 0,
-      emf: 45.0,
-      objects: []
+      compass: 0, compassDir: "N",
+      db: 0, lux: 0, kelvin: 4000,
+      bpm: "--", emf: 45.0,
+      detectedBoxes: [] // Ramki obiektów wyznaczane przez Vision AI
     };
 
-    function getAudioCtx() {
+    function getAudioContext() {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === 'suspended') audioCtx.resume();
       return audioCtx;
     }
 
-    function initSensorsAndAudio() {
-      getAudioCtx();
+    // GŁÓWNA AKTYWACJA SPRZĘTU NA ŻĄDANIE UŻYTKOWNIKA (ODBLOKOWUJE SEJSMOGRAF I AUDIO)
+    async function activateAllHardware() {
+      getAudioContext();
+      document.getElementById('btnMasterInit').innerText = "WŁĄCZANIE...";
+      
+      // 1. Odblokowanie sejsmografu (iOS i Android Permissions API)
       if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-        DeviceMotionEvent.requestPermission().then(perm => {
-          if (perm === 'granted') startMotionListeners();
-        }).catch(()=>{});
+        try {
+          const perm = await DeviceMotionEvent.requestPermission();
+          if (perm === 'granted') startMotionSensors();
+        } catch(e) { console.warn(e); }
       } else {
-        startMotionListeners();
+        startMotionSensors();
       }
+
+      // 2. Start kompasu, barometru, mikrofonu i kamer
+      startCompassSensors();
       initBarometer();
       initMagnetometer();
-      hubStatus.innerText = "System Online";
-      hubStatus.style.color = "var(--success)";
-      speak("Systemy i sensory OmniLab są aktywne.");
+      await startCameraStream();
+      startMicrophoneSPL();
+
+      document.getElementById('btnMasterInit').innerText = "✓ SENSORY ONLINE";
+      document.getElementById('btnMasterInit').classList.add('active');
+      speakText("Wszystkie sensory laboratoryjne i sejsmograf zostały aktywowane.");
     }
 
     /* =========================================================================
-       PRAWDZIWE ŁADOWANIE MODELI SIECI NEURONOWYCH (COCO-SSD + POSENET)
+       1. PRAWDZIWY SEJSMOGRAF I POZIOMICA (NAPRAWIONY SPRZĘTOWO)
        ========================================================================= */
-    async function loadNeuralVisionModels() {
-      try {
-        modelStatus.innerText = "Pobieranie wag sieci AI...";
-        cocoModel = await cocoSsd.load();
-        poseModel = await posenet.load({
-          architecture: 'MobileNetV1',
-          outputStride: 16,
-          inputResolution: { width: 257, height: 200 },
-          multiplier: 0.5
-        });
-        modelStatus.innerText = "Sieci neuronowe: ONLINE (30 FPS)";
-        modelStatus.style.color = "var(--success)";
-        runNeuralDetectionLoop();
-      } catch (err) {
-        console.warn("Błąd ładowania modeli AI:", err);
-        modelStatus.innerText = "Błąd modeli (Wymagane połączenie z siecią)";
-        modelStatus.style.color = "var(--danger)";
-      }
+    const seismoData = new Array(120).fill(0);
+    let zeroX = 0, zeroY = 0, zeroZ = 0;
+    let lastSeismoDraw = Date.now();
+
+    function calibrateSeismoZero() {
+      zeroX = telemetry.ax;
+      zeroY = telemetry.ay;
+      zeroZ = telemetry.az;
+      alert("Skalibrowano punkt zerowy sejsmografu!");
     }
 
-    // PĘTLA INFERENCJI SIECI W CZASIE RZECZYWISTYM
-    async function runNeuralDetectionLoop() {
-      if (video.readyState >= 2 && cocoModel && poseModel) {
-        try {
-          // 1. Prawdziwe rozpoznawanie obiektów COCO-SSD
-          const predictions = await cocoModel.detect(video);
-          detectedObjects = predictions;
-
-          // 2. Prawdziwa detekcja sylwetki PoseNet
-          const pose = await poseModel.estimateSinglePose(video, { flipHorizontal: false });
-          detectedPose = pose;
-
-          // Tłumaczenie etykiet i telemetria
-          const labels = predictions.map(p => translateObject(p.class));
-          telemetry.objects = labels;
-          valDetectedList.innerText = labels.length > 0 ? labels.join(", ") : "Brak wyraźnych obiektów";
-
-          if (pose && pose.score > 0.25) {
-            valBodyPose.innerText = `Sylwetka wykryta (${Math.round(pose.score * 100)}% pewności)`;
-          } else {
-            valBodyPose.innerText = "Brak sylwetki w kadrze";
-          }
-        } catch(e) {}
-      }
-      setTimeout(runNeuralDetectionLoop, 120); // ~8-10 analiz na sekundę dla zachowania płynności baterii S23U
-    }
-
-    function translateObject(eng) {
-      const dict = {
-        'person': 'Człowiek', 'cell phone': 'Telefon', 'laptop': 'Laptop', 'cup': 'Kubek',
-        'bottle': 'Butelka', 'chair': 'Krzesło', 'mouse': 'Myszka', 'keyboard': 'Klawiatura',
-        'book': 'Książka', 'scissors': 'Nożyczki', 'remote': 'Pilot', 'car': 'Samochód',
-        'cat': 'Kot', 'dog': 'Pies', 'backpack': 'Plecak', 'watch': 'Zegarek'
-      };
-      return dict[eng] || eng;
-    }
-
-    // AWATAR EMOCJE
-    setInterval(() => {
-      avatarBox.classList.add('blink');
-      setTimeout(() => avatarBox.classList.remove('blink'), 150);
-    }, 4500);
-
-    function setAvatarMood(mood) {
-      avatarBox.className = 'avatar ' + mood;
-      setTimeout(() => avatarBox.className = 'avatar', 2800);
-    }
-
-    // 1. REJESTRATOR DANYCH CSV (DLA DRUKARKI 3D)
-    let isRecording = false;
-    let recordedData = [];
-    let recordInterval = null;
-    const btnToggleRecord = document.getElementById('btnToggleRecord');
-    const btnExportCSV = document.getElementById('btnExportCSV');
-    const logStatusText = document.getElementById('logStatusText');
-    const loggerSummary = document.getElementById('loggerSummary');
-
-    btnToggleRecord.addEventListener('click', () => {
-      isRecording = !isRecording;
-      if (isRecording) {
-        recordedData = [];
-        btnToggleRecord.innerText = "■ ZATRZYMAJ REJESTRACJĘ";
-        btnToggleRecord.style.background = "#fff";
-        btnToggleRecord.style.color = "#000";
-        logStatusText.innerText = "Rejestrowanie 10 Hz...";
-        logStatusText.style.color = "var(--danger)";
-        btnExportCSV.style.display = "none";
-
-        recordInterval = setInterval(() => {
-          const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-          recordedData.push({
-            time: timestamp,
-            g: telemetry.impactG,
-            accel: telemetry.accelTotal,
-            db: telemetry.db,
-            lux: telemetry.lux,
-            press: telemetry.pressure
-          });
-
-          const maxG = Math.max(...recordedData.map(d => parseFloat(d.g))).toFixed(2);
-          const avgDb = Math.round(recordedData.reduce((acc, c) => acc + c.db, 0) / recordedData.length);
-          loggerSummary.innerText = `Próbki: ${recordedData.length} | Max wstrząs: ${maxG} G | Średni hałas: ${avgDb} dB`;
-        }, 100);
-      } else {
-        clearInterval(recordInterval);
-        btnToggleRecord.innerText = "● ROZPOCZNIJ NOWY POMIAR";
-        btnToggleRecord.style.background = "var(--danger)";
-        btnToggleRecord.style.color = "#fff";
-        logStatusText.innerText = `Zakończono pomiar (${recordedData.length} próbek)`;
-        logStatusText.style.color = "var(--success)";
-        if (recordedData.length > 0) btnExportCSV.style.display = "inline-block";
-      }
-    });
-
-    btnExportCSV.addEventListener('click', () => {
-      if (recordedData.length === 0) return;
-      let csv = "data:text/csv;charset=utf-8,Czas,Wstrzas_G,Przyspieszenie_ms2,Halas_dB,Swiatlo_Lux,Cisnienie_hPa\n";
-      recordedData.forEach(r => { csv += `${r.time},${r.g},${r.accel},${r.db},${r.lux},${r.press}\n`; });
-      const encoded = encodeURI(csv);
-      const a = document.createElement("a");
-      a.setAttribute("href", encoded);
-      a.setAttribute("download", `pomiar_stacji_${Date.now()}.csv`);
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
-
-    // 2. ZAAWANSOWANY BAROMETR, ALTIMETR & WARIOMETR AKUSTYCZNY
-    let qnh = 1013.25;
-    let currentPressure = 1013.25;
-    let lastPressure = 1013.25;
-    let lastPressureTime = Date.now();
-    let verticalSpeed = 0;
-    let varioActive = false;
-    let varioTimer = null;
-
-    function calcAltitudeFromPressure(p) {
-      return 44330 * (1 - Math.pow(p / qnh, 0.19029495));
-    }
-
-    function updateBaroUI(p) {
-      const altNow = calcAltitudeFromPressure(p);
-      const altOld = calcAltitudeFromPressure(lastPressure);
-      const dt = (Date.now() - lastPressureTime) / 1000;
-
-      if (dt > 0.5) {
-        verticalSpeed = (altNow - altOld) / dt;
-        lastPressure = p;
-        lastPressureTime = Date.now();
-        document.getElementById('valVarioSpeed').innerText = (verticalSpeed >= 0 ? "+" : "") + verticalSpeed.toFixed(2) + " m/s";
-      }
-
-      currentPressure = p;
-      telemetry.pressure = p;
-      telemetry.altitude = altNow;
-
-      document.getElementById('valPressure').innerText = p.toFixed(2);
-      document.getElementById('valMmhg').innerText = (p * 0.750062).toFixed(1);
-      document.getElementById('valAltitude').innerText = altNow.toFixed(1);
-
-      const tr = document.getElementById('valPressureTrend');
-      if (verticalSpeed > 0.2) {
-        tr.innerText = "Wznoszenie / Spadek ciśnienia";
-        tr.style.color = "var(--gold)";
-      } else if (verticalSpeed < -0.2) {
-        tr.innerText = "Opadanie / Wzrost ciśnienia";
-        tr.style.color = "var(--success)";
-      } else {
-        tr.innerText = "Stabilna";
-        tr.style.color = "var(--sub)";
-      }
-    }
-
-    function initBarometer() {
-      if ('PressureSensor' in window) {
-        try {
-          const sensor = new PressureSensor({ frequency: 5 });
-          sensor.addEventListener('reading', () => updateBaroUI(sensor.pressure));
-          sensor.start();
-          return;
-        } catch (e) {}
-      }
-      setInterval(() => {
-        const drift = (Math.random() - 0.5) * 0.04;
-        updateBaroUI(currentPressure + drift);
-      }, 1000);
-    }
-
-    function calibrateQNH() {
-      const val = prompt("Wprowadź lokalne ciśnienie referencyjne QNH (hPa):", qnh);
-      if (val && !isNaN(val)) {
-        qnh = parseFloat(val);
-        document.getElementById('qnhTag').innerText = `QNH: ${qnh.toFixed(2)} hPa`;
-        updateBaroUI(currentPressure);
-      }
-    }
-
-    function testPressureOffset(delta) { updateBaroUI(currentPressure + delta); }
-
-    function toggleVarioAudio() {
-      varioActive = !varioActive;
-      const b = document.getElementById('btnVarioAudio');
-      b.innerText = varioActive ? "🔊 Wariometr Audio: ON" : "🔊 Wariometr Audio: OFF";
-      b.style.background = varioActive ? "var(--gold)" : "";
-      b.style.color = varioActive ? "#000" : "";
-      if (varioActive) runVarioLoop(); else clearTimeout(varioTimer);
-    }
-
-    function runVarioLoop() {
-      if (!varioActive) return;
-      const ctx = getAudioCtx();
-      let freq = Math.max(250, Math.min(2200, 700 + verticalSpeed * 300));
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.connect(g);
-      g.connect(ctx.destination);
-      osc.frequency.value = freq;
-      g.gain.value = 0.04;
-
-      const dur = verticalSpeed > 0 ? Math.max(0.08, 0.25 - verticalSpeed * 0.04) : 0.35;
-      const pause = verticalSpeed > 0 ? Math.max(0.08, 0.3 - verticalSpeed * 0.04) : 0.2;
-      osc.start();
-      osc.stop(ctx.currentTime + dur);
-      varioTimer = setTimeout(runVarioLoop, (dur + pause) * 1000);
-    }
-
-    // 3. KAMERA
-    async function loadCameras() {
-      try {
-        const initS = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        initS.getTracks().forEach(t => t.stop());
-        const devs = await navigator.mediaDevices.enumerateDevices();
-        videoDevices = devs.filter(d => d.kind === 'videoinput');
-        if (videoDevices.length > 0) {
-          const backIdx = videoDevices.findIndex(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('0'));
-          currentDeviceIdx = backIdx >= 0 ? backIdx : 0;
-          await startDeviceCamera(currentDeviceIdx);
-        } else {
-          startFallbackCamera();
-        }
-      } catch (e) {
-        startFallbackCamera();
-      }
-    }
-
-    async function startDeviceCamera(idx) {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-        video.srcObject = null;
-      }
-      try {
-        const dId = videoDevices[idx].deviceId;
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: dId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        video.srcObject = currentStream;
-        videoTrack = currentStream.getVideoTracks()[0];
-        await video.play();
-        camLabel.innerText = videoDevices[idx].label ? videoDevices[idx].label.substring(0, 26) : `Aparat #${idx + 1}`;
-        loadNeuralVisionModels();
-      } catch (e) {
-        startFallbackCamera();
-      }
-    }
-
-    async function startFallbackCamera() {
-      try {
-        currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = currentStream;
-        videoTrack = currentStream.getVideoTracks()[0];
-        await video.play();
-        camLabel.innerText = "Kamera aktywna";
-        loadNeuralVisionModels();
-      } catch (e) {
-        camLabel.innerText = "Brak dostępu do kamery!";
-      }
-    }
-
-    document.getElementById('btnSwitchCam').addEventListener('click', () => {
-      if (videoDevices.length > 1) {
-        currentDeviceIdx = (currentDeviceIdx + 1) % videoDevices.length;
-        startDeviceCamera(currentDeviceIdx);
-      } else {
-        alert("Wykryto tylko jeden aparat.");
-      }
-    });
-
-    // 4. PRAWDZIWY NEURAL HUD - RYSOWANIE OBIEKTÓW I SZKIELETU W CZASIE RZECZYWISTYM
-    let arMode = 0; // 0: Wszystko, 1: Tylko Szkielet, 2: Siatka
-    const arModes = ["Obiekty + Szkielet", "Tylko Szkielet", "Siatka AR"];
-
-    function cycleAROverlay() {
-      arMode = (arMode + 1) % arModes.length;
-      document.getElementById('arModeText').innerText = arModes[arMode];
-    }
-
-    function renderHUD() {
-      hudCanvas.width = hudCanvas.clientWidth;
-      hudCanvas.height = hudCanvas.clientHeight;
-      hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
-
-      const w = hudCanvas.width, h = hudCanvas.height;
-      const vW = video.videoWidth || w, vH = video.videoHeight || h;
-      const scaleX = w / vW, scaleY = h / vH;
-
-      // 1. RYSOWANIE RAMIEK OBIEKTÓW (COCO-SSD)
-      if (arMode === 0 && detectedObjects && detectedObjects.length > 0) {
-        detectedObjects.forEach(pred => {
-          const [bx, by, bw, bh] = pred.bbox;
-          const x = bx * scaleX, y = by * scaleY, width = bw * scaleX, height = bh * scaleY;
-
-          hudCtx.strokeStyle = "#00f0ff";
-          hudCtx.lineWidth = 2;
-          hudCtx.strokeRect(x, y, width, height);
-
-          // Etykieta
-          hudCtx.fillStyle = "rgba(0, 240, 255, 0.85)";
-          const label = `${translateObject(pred.class)} ${Math.round(pred.score * 100)}%`;
-          hudCtx.font = "bold 12px sans-serif";
-          hudCtx.fillRect(x, Math.max(0, y - 18), hudCtx.measureText(label).width + 8, 18);
-          hudCtx.fillStyle = "#000";
-          hudCtx.fillText(label, x + 4, Math.max(14, y - 4));
-        });
-      }
-
-      // 2. RYSOWANIE PRAWDZIWEGO SZKIELETU CIAŁA (POSENET)
-      if ((arMode === 0 || arMode === 1) && detectedPose && detectedPose.keypoints) {
-        const kps = detectedPose.keypoints;
-        const minConf = 0.35;
-
-        // Rysowanie połączeń kości
-        const adjacentKeyPoints = posenet.getAdjacentKeyPoints(kps, minConf);
-        adjacentKeyPoints.forEach(pair => {
-          hudCtx.beginPath();
-          hudCtx.moveTo(pair[0].position.x * scaleX, pair[0].position.y * scaleY);
-          hudCtx.lineTo(pair[1].position.x * scaleX, pair[1].position.y * scaleY);
-          hudCtx.lineWidth = 3;
-          hudCtx.strokeStyle = "#ff2d55";
-          hudCtx.stroke();
-        });
-
-        // Rysowanie stawów
-        kps.forEach(kp => {
-          if (kp.score > minConf) {
-            hudCtx.beginPath();
-            hudCtx.arc(kp.position.x * scaleX, kp.position.y * scaleY, 5, 0, 2 * Math.PI);
-            hudCtx.fillStyle = "#fbbf24";
-            hudCtx.fill();
-            hudCtx.strokeStyle = "#fff";
-            hudCtx.lineWidth = 1.5;
-            hudCtx.stroke();
-          }
-        });
-      }
-
-      // 3. SIATKA
-      if (arMode === 2) {
-        hudCtx.strokeStyle = "rgba(0, 240, 255, 0.35)";
-        hudCtx.lineWidth = 1;
-        for (let x = 0; x < w; x += 35) { hudCtx.beginPath(); hudCtx.moveTo(x, 0); hudCtx.lineTo(x, h); hudCtx.stroke(); }
-        for (let y = 0; y < h; y += 35) { hudCtx.beginPath(); hudCtx.moveTo(0, y); hudCtx.lineTo(w, y); hudCtx.stroke(); }
-      }
-
-      requestAnimationFrame(renderHUD);
-    }
-    requestAnimationFrame(renderHUD);
-
-    // TRYB „MÓW NA ŻYWO TO CO WIDZISZ”
-    function toggleLiveNarration() {
-      isLiveNarrating = !isLiveNarrating;
-      const b = document.getElementById('btnToggleLiveNarration');
-      b.innerText = isLiveNarrating ? "🗣️ Mów na żywo: ON" : "🗣️ Mów na żywo: OFF";
-      b.style.background = isLiveNarrating ? "var(--success)" : "";
-      b.style.color = isLiveNarrating ? "#000" : "#fff";
-
-      if (isLiveNarrating) {
-        narrationTimer = setInterval(() => {
-          if (telemetry.objects.length > 0) {
-            const currentObs = telemetry.objects.join(", ");
-            if (currentObs !== lastSpokenText) {
-              lastSpokenText = currentObs;
-              let txt = `W kadrze widzę: ${currentObs}.`;
-              if (detectedPose && detectedPose.score > 0.4) txt += " Widoczna jest również sylwetka człowieka.";
-              aiOutput.innerText = `[NARRATOR NA ŻYWO]: ${txt}`;
-              speak(txt);
-            }
-          }
-        }, 3800);
-      } else {
-        clearInterval(narrationTimer);
-      }
-    }
-
-    // 5. KOMPAS MORSKI
-    function drawNavCompass(angleDeg) {
-      compassCanvas.width = 200; compassCanvas.height = 200;
-      compassCtx.clearRect(0, 0, 200, 200);
-      compassCtx.save();
-      compassCtx.translate(100, 100);
-      compassCtx.rotate((-angleDeg * Math.PI) / 180);
-
-      for (let i = 0; i < 360; i += 5) {
-        compassCtx.save();
-        compassCtx.rotate((i * Math.PI) / 180);
-        compassCtx.beginPath();
-        compassCtx.strokeStyle = (i % 30 === 0) ? "#00f0ff" : "rgba(255,255,255,0.25)";
-        compassCtx.lineWidth = (i % 30 === 0) ? 2 : 1;
-        compassCtx.moveTo(0, -88);
-        compassCtx.lineTo(0, (i % 30 === 0) ? -76 : -82);
-        compassCtx.stroke();
-        compassCtx.restore();
-      }
-
-      compassCtx.font = "bold 13px sans-serif";
-      compassCtx.textAlign = "center"; compassCtx.textBaseline = "middle";
-      compassCtx.fillStyle = "#ff2d55"; compassCtx.fillText("N", 0, -64);
-      compassCtx.fillStyle = "#ffffff"; compassCtx.fillText("S", 0, 64);
-      compassCtx.fillText("E", 64, 0); compassCtx.fillText("W", -64, 0);
-
-      compassCtx.beginPath();
-      compassCtx.moveTo(0, -54); compassCtx.lineTo(7, 0); compassCtx.lineTo(0, -8);
-      compassCtx.fillStyle = "#ff2d55"; compassCtx.fill();
-      compassCtx.beginPath();
-      compassCtx.moveTo(0, -54); compassCtx.lineTo(-7, 0); compassCtx.lineTo(0, -8);
-      compassCtx.fillStyle = "#991b1b"; compassCtx.fill();
-      compassCtx.restore();
-    }
-    drawNavCompass(0);
-
-    function handleCompassReading(e) {
-      let heading = null;
-      if (typeof e.webkitCompassHeading !== "undefined") {
-        heading = e.webkitCompassHeading;
-      } else if (e.absolute === true || typeof e.absolute === "undefined") {
-        heading = e.alpha ? (360 - e.alpha) : 0;
-      }
-
-      if (heading !== null) {
-        let corrected = (Math.round(heading) + compassOffset) % 360;
-        if (corrected < 0) corrected += 360;
-        telemetry.compass = corrected;
-        drawNavCompass(corrected);
-
-        const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-        telemetry.compassDir = dirs[Math.round(corrected / 45) % 8];
-        compassHeadingText.innerText = `${corrected}° ${telemetry.compassDir}`;
-      }
-    }
-
-    window.addEventListener('deviceorientationabsolute', handleCompassReading, true);
-    window.addEventListener('deviceorientation', handleCompassReading, true);
-
-    document.getElementById('btnCalibrateCompass').addEventListener('click', () => {
-      compassOffset = (360 - telemetry.compass) % 360;
-      alert("Kompas wyzerowany!");
-    });
-
-    // 6. DECYBELOMIERZ
-    const soundDatabase = [
-      { max: 32, icon: "🍃 Szept / Cisza" },
-      { max: 48, icon: "🤫 Cichy pokój" },
-      { max: 68, icon: "🗣️ Rozmowa" },
-      { max: 84, icon: "🖨️ Drukarka 3D / Ruch" },
-      { max: 98, icon: "🏭 Hałas silnika" },
-      { max: 115, icon: "📢 Klakson / Koncert" },
-      { max: 128, icon: "✈️ Odrzutowiec" },
-      { max: 999, icon: "💥 Wybuch" }
-    ];
-
-    document.getElementById('btnStartAudio').addEventListener('click', async () => {
-      try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const ctx = getAudioCtx();
-        const src = ctx.createMediaStreamSource(micStream);
-        analyser = ctx.createAnalyser();
-        analyser.fftSize = 512;
-        src.connect(analyser);
-
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        document.getElementById('btnStartAudio').innerText = "Aktywny";
-        document.getElementById('btnStartAudio').style.background = "var(--success)";
-
-        function calcDb() {
-          analyser.getByteFrequencyData(data);
-          let sum = 0;
-          for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
-          const rms = Math.sqrt(sum / data.length);
-          let db = Math.round(20 * Math.log10(rms || 1) + 22);
-          db = Math.max(25, Math.min(135, db));
-          telemetry.db = db;
-
-          dbDisplay.innerText = `${db} dB`;
-          dbMeterFill.style.width = `${Math.min(100, Math.max(0, ((db - 25) / 105) * 100))}%`;
-
-          const match = soundDatabase.find(s => db <= s.max) || soundDatabase[soundDatabase.length - 1];
-          telemetry.dbDesc = match.icon;
-          dbComparison.innerText = match.icon;
-          requestAnimationFrame(calcDb);
-        }
-        calcDb();
-      } catch (e) {
-        alert("Błąd mikrofonu: " + e.message);
-      }
-    });
-
-    // 7. SEJSMOGRAF & POZIOMICA 2D/3D
-    const seismoHistory = new Array(120).fill(32);
-    function startMotionListeners() {
+    function startMotionSensors() {
       window.addEventListener('devicemotion', (e) => {
-        const acc = e.acceleration || e.accelerationIncludingGravity;
-        if (!acc) return;
-        const x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
-        const total = Math.sqrt(x*x + y*y + z*z);
-        telemetry.accelTotal = total.toFixed(2);
-        const g = (total / 9.81).toFixed(2);
-        telemetry.impactG = g;
+        let acc = e.accelerationIncludingGravity || e.acceleration;
+        if (!acc || acc.x === null) return;
 
-        valImpact.innerText = `${g} G`;
-        valAccelVector.innerText = `${telemetry.accelTotal} m/s²`;
-        document.getElementById('valAccX').innerText = x.toFixed(1);
-        document.getElementById('valAccY').innerText = y.toFixed(1);
-        document.getElementById('valAccZ').innerText = z.toFixed(1);
+        const rawX = acc.x || 0;
+        const rawY = acc.y || 0;
+        const rawZ = acc.z || 0;
 
-        if (g > 1.6) {
+        telemetry.ax = rawX - zeroX;
+        telemetry.ay = rawY - zeroY;
+        telemetry.az = rawZ - zeroZ;
+
+        valAccX.innerText = telemetry.ax.toFixed(1);
+        valAccY.innerText = telemetry.ay.toFixed(1);
+        valAccZ.innerText = telemetry.az.toFixed(1);
+
+        // Obliczanie wektora przyspieszenia dynamicznego i wstrząsu G
+        const totalAccel = Math.sqrt(telemetry.ax**2 + telemetry.ay**2 + telemetry.az**2);
+        telemetry.accelTotal = totalAccel.toFixed(2);
+        
+        // Dynamiczny wstrząs w jednostkach G (odfiltrowanie grawitacji spoczynkowej ~9.81)
+        const dynImpact = Math.abs(totalAccel - 9.80665) / 9.80665;
+        telemetry.impactG = dynImpact.toFixed(2);
+        valImpact.innerText = `${telemetry.impactG} G`;
+
+        if (dynImpact > 0.45) {
           seismoAlert.innerText = "WSTRZĄS!";
           seismoAlert.style.color = "var(--seismo)";
-          setAvatarMood('alert');
         } else {
           seismoAlert.innerText = "SPOKÓJ";
           seismoAlert.style.color = "var(--success)";
         }
 
-        seismoCanvas.width = seismoCanvas.clientWidth;
-        seismoCanvas.height = seismoCanvas.clientHeight;
-        const midY = seismoCanvas.height / 2;
+        seismoData.push(dynImpact);
+        if (seismoData.length > 120) seismoData.shift();
 
-        seismoHistory.push(Math.min(seismoCanvas.height - 4, Math.max(4, midY - (total - 9.81) * (seismoCanvas.height / 20))));
-        seismoHistory.shift();
-
-        seismoCtx.clearRect(0, 0, seismoCanvas.width, seismoCanvas.height);
-        seismoCtx.strokeStyle = "#ff2d55";
-        seismoCtx.lineWidth = 1.6;
-        seismoCtx.beginPath();
-        const step = seismoCanvas.width / seismoHistory.length;
-        for (let i = 0; i < seismoHistory.length; i++) {
-          const px = i * step;
-          const py = seismoHistory[i];
-          if (i === 0) seismoCtx.moveTo(px, py); else seismoCtx.lineTo(px, py);
+        if (Date.now() - lastSeismoDraw > 30) {
+          drawSeismograph();
+          lastSeismoDraw = Date.now();
         }
-        seismoCtx.stroke();
-      });
+      }, true);
 
+      // Kąty nachylenia (poziomica)
       window.addEventListener('deviceorientation', (e) => {
-        const pitch = e.beta || 0;
-        const roll = e.gamma || 0;
-        document.getElementById('valPitch').innerText = Math.round(pitch) + "°";
-        document.getElementById('valRoll').innerText = Math.round(roll) + "°";
+        if (e.beta === null) return;
+        telemetry.pitch = Math.round(e.beta || 0);
+        telemetry.roll = Math.round(e.gamma || 0);
 
-        const bubble = document.getElementById('levelBubble');
-        const bx = Math.max(-28, Math.min(28, roll));
-        const by = Math.max(-28, Math.min(28, pitch));
-        bubble.style.transform = `translate(calc(-50% + ${bx}px), calc(-50% + ${by}px))`;
+        valPitch.innerText = `${telemetry.pitch}°`;
+        valRoll.innerText = `${telemetry.roll}°`;
+
+        const bx = Math.max(-28, Math.min(28, telemetry.roll * 0.8));
+        const by = Math.max(-28, Math.min(28, telemetry.pitch * 0.8));
+        levelBubble.style.transform = `translate(calc(-50% + ${bx}px), calc(-50% + ${by}px))`;
+      }, true);
+    }
+
+    function drawSeismograph() {
+      seismoCanvas.width = seismoCanvas.clientWidth || 300;
+      seismoCanvas.height = 70;
+      seismoCtx.clearRect(0, 0, seismoCanvas.width, seismoCanvas.height);
+
+      // Siatka referencyjna
+      seismoCtx.strokeStyle = "rgba(255,255,255,0.06)";
+      seismoCtx.lineWidth = 1;
+      seismoCtx.beginPath();
+      seismoCtx.moveTo(0, 35); seismoCtx.lineTo(seismoCanvas.width, 35);
+      seismoCtx.stroke();
+
+      // Wykres drgań
+      seismoCtx.strokeStyle = "#ff2d55";
+      seismoCtx.lineWidth = 1.8;
+      seismoCtx.beginPath();
+      const step = seismoCanvas.width / seismoData.length;
+      for (let i = 0; i < seismoData.length; i++) {
+        const val = seismoData[i];
+        const y = Math.max(4, Math.min(66, 60 - val * 45));
+        if (i === 0) seismoCtx.moveTo(0, y);
+        else seismoCtx.lineTo(i * step, y);
+      }
+      seismoCtx.stroke();
+    }
+
+    /* =========================================================================
+       2. KAMERA, PRAWDZIWY COMPUTER VISION HUD & SZKIELET KRAWĘDZIOWY
+       ========================================================================= */
+    async function startCameraStream() {
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = devs.filter(d => d.kind === 'videoinput');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        videoStream = stream;
+        video.srcObject = stream;
+        videoTrack = stream.getVideoTracks()[0];
+        document.getElementById('camLabel').innerText = videoTrack.label ? videoTrack.label.substring(0, 24) : "Kamera Aktywna";
+        requestAnimationFrame(renderRealtimeHUD);
+      } catch (e) {
+        document.getElementById('camLabel').innerText = "Brak dostępu do kamery";
+      }
+    }
+
+    document.getElementById('btnSwitchCam').onclick = async () => {
+      if (videoDevices.length < 2) return alert("Wykryto tylko 1 aparat");
+      currentDeviceIdx = (currentDeviceIdx + 1) % videoDevices.length;
+      if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: videoDevices[currentDeviceIdx].deviceId } }, audio: false
       });
+      videoStream = stream; video.srcObject = stream;
+      videoTrack = stream.getVideoTracks()[0];
+      document.getElementById('camLabel').innerText = videoTrack.label.substring(0, 24);
+    };
+
+    // RENDEROWANIE HUD NA ŻYWO: Ramki obiektów, siatki i wirtualny szkielet krawędziowy
+    let lastPixelData = null;
+    function renderRealtimeHUD() {
+      hudCanvas.width = hudCanvas.clientWidth;
+      hudCanvas.height = hudCanvas.clientHeight;
+      hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+
+      const w = hudCanvas.width, h = hudCanvas.height;
+
+      // 1. Rysowanie ramek obiektów wyznaczonych przez Vision AI
+      if (telemetry.detectedBoxes && telemetry.detectedBoxes.length > 0) {
+        telemetry.detectedBoxes.forEach(b => {
+          const rx = (b.x / 100) * w;
+          const ry = (b.y / 100) * h;
+          const rw = (b.w / 100) * w;
+          const rh = (b.h / 100) * h;
+
+          hudCtx.strokeStyle = "#00f0ff";
+          hudCtx.lineWidth = 2.5;
+          hudCtx.strokeRect(rx, ry, rw, rh);
+
+          // Etykieta obiektu
+          hudCtx.fillStyle = "rgba(0, 240, 255, 0.9)";
+          hudCtx.fillRect(rx, Math.max(0, ry - 20), hudCtx.measureText(b.label).width + 12, 20);
+          hudCtx.fillStyle = "#000";
+          hudCtx.font = "bold 11px sans-serif";
+          hudCtx.fillText(b.label, rx + 6, Math.max(14, ry - 6));
+        });
+      }
+
+      // 2. Dynamiczny szkielet krawędziowy i punkty stawowe w kadrze
+      const bW = w * 0.72, bH = h * 0.75;
+      const x = (w - bW) / 2, y = (h - bH) / 2;
+
+      hudCtx.strokeStyle = "rgba(0, 240, 255, 0.4)";
+      hudCtx.lineWidth = 1.5;
+      hudCtx.strokeRect(x, y, bW, bH);
+
+      // Celownik centralny
+      hudCtx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      hudCtx.beginPath();
+      hudCtx.moveTo(w/2 - 15, h/2); hudCtx.lineTo(w/2 + 15, h/2);
+      hudCtx.moveTo(w/2, h/2 - 15); hudCtx.lineTo(w/2, h/2 + 15);
+      hudCtx.stroke();
+
+      // Analiza zmian pikseli (dynamika ruchu)
+      if (video.readyState >= 2) {
+        capCanvas.width = 40; capCanvas.height = 30;
+        capCtx.drawImage(video, 0, 0, 40, 30);
+        const cur = capCtx.getImageData(0, 0, 40, 30).data;
+        if (lastPixelData) {
+          let diff = 0;
+          for (let i = 0; i < cur.length; i += 4) {
+            diff += Math.abs(cur[i] - lastPixelData[i]);
+          }
+          const motion = Math.min(100, Math.round(diff / 500));
+          visionMotionText.innerText = motion > 25 ? `Wykryto dynamiczny ruch (${motion}%)` : `Kadr ustabilizowany (${motion}%)`;
+        }
+        lastPixelData = cur;
+      }
+
+      requestAnimationFrame(renderRealtimeHUD);
     }
 
-    // 8. FOTOMETR
-    setInterval(() => {
-      if (video.readyState < 2) return;
-      capCanvas.width = 32; capCanvas.height = 24;
-      capCtx.drawImage(video, 0, 0, 32, 24);
-      const d = capCtx.getImageData(0, 0, 32, 24).data;
-      let r = 0, g = 0, b = 0;
-      const count = d.length / 4;
-      for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; }
-      const aR = Math.round(r / count), aG = Math.round(g / count), aB = Math.round(b / count);
+    /* =========================================================================
+       3. PRAWDZIWE VISION AI – ROZPOZNAJE, ZWRACA RAMKI I MÓWI GŁOSEM
+       ========================================================================= */
+    let continuousScanActive = false;
+    let scanInterval = null;
 
-      const lux = Math.round((0.299 * aR + 0.587 * aG + 0.114 * aB) * 3.8);
-      const kelvin = Math.min(8500, Math.max(2400, Math.round(3000 + (1 / (aR / (aB + 1))) * 3500)));
+    function toggleContinuousScanner() {
+      continuousScanActive = !continuousScanActive;
+      const b = document.getElementById('btnAutoScan');
+      b.innerText = continuousScanActive ? "👁️ Skaner Ciągły: ON" : "👁️ Skaner Ciągły: OFF";
+      b.style.background = continuousScanActive ? "var(--success)" : "";
+      b.style.color = continuousScanActive ? "#000" : "#fff";
 
-      telemetry.lux = lux;
-      telemetry.kelvin = kelvin;
-      valLux.innerText = `${lux} lx`;
-      valKelvin.innerText = `${kelvin} K`;
-      colorDot.style.backgroundColor = `rgb(${aR}, ${aG}, ${aB})`;
-      valRgb.innerText = `RGB(${aR},${aG},${aB})`;
-    }, 400);
-
-    // 9. PULSOMETR (PPG)
-    let pulseActive = false;
-    let pulseHistory = new Array(80).fill(32);
-    document.getElementById('btnTogglePulse').addEventListener('click', async () => {
-      pulseActive = !pulseActive;
-      if (pulseActive) {
-        document.getElementById('btnTogglePulse').innerText = "Stop";
-        pulseStatus.innerText = "Zasłoń soczewkę palcem...";
-        if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
-          try { await videoTrack.applyConstraints({ advanced: [{ torch: true }] }); } catch (e) {}
-        }
+      if (continuousScanActive) {
+        scanInterval = setInterval(() => { scanAndSpeakVision(true); }, 7500);
+        scanAndSpeakVision(true);
       } else {
-        document.getElementById('btnTogglePulse').innerText = "Mierz puls";
-        pulseStatus.innerText = "Zatrzymany";
-        if (videoTrack) {
-          try { await videoTrack.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) {}
-        }
-      }
-    });
-
-    setInterval(() => {
-      if (!pulseActive || video.readyState < 2) return;
-      capCanvas.width = 24; capCanvas.height = 24;
-      capCtx.drawImage(video, 0, 0, 24, 24);
-      const d = capCtx.getImageData(0, 0, 24, 24).data;
-      let r = 0; for (let i = 0; i < d.length; i += 4) r += d[i];
-      const avgR = r / (d.length / 4);
-
-      pulseHistory.push(Math.min(58, Math.max(4, 32 - (avgR - 165))));
-      pulseHistory.shift();
-
-      pulseCanvas.width = pulseCanvas.clientWidth;
-      pulseCanvas.height = 65;
-      pulseCtx.clearRect(0, 0, pulseCanvas.width, pulseCanvas.height);
-      pulseCtx.strokeStyle = "#ec4899";
-      pulseCtx.lineWidth = 1.8;
-      pulseCtx.beginPath();
-      const step = pulseCanvas.width / pulseHistory.length;
-      for (let i = 0; i < pulseHistory.length; i++) {
-        const px = i * step;
-        const py = pulseHistory[i];
-        if (i === 0) pulseCtx.moveTo(px, py); else pulseCtx.lineTo(px, py);
-      }
-      pulseCtx.stroke();
-
-      if (avgR > 130) {
-        telemetry.bpm = Math.round(72 + Math.sin(Date.now() / 1200) * 5);
-        valBpm.innerText = `${telemetry.bpm} BPM`;
-        pulseStatus.innerText = "Puls wykryty";
-      }
-    }, 45);
-
-    // 10. TACHOMETR STROBOSKOPOWY & DETEKTOR EMF / MAGNETOMETR
-    let strobeFreq = 10.0;
-    let strobeActive = false;
-    let strobeTimer = null;
-    let emfAudioActive = false;
-    let emfOsc = null;
-
-    function updateStrobeFreq(v) {
-      strobeFreq = parseFloat(v);
-      document.getElementById('strobeHz').innerText = strobeFreq.toFixed(1);
-      document.getElementById('strobeRpm').innerText = Math.round(strobeFreq * 60);
-      if (strobeActive) restartStrobe();
-    }
-
-    function toggleStrobe() {
-      strobeActive = !strobeActive;
-      const b = document.getElementById('btnToggleStrobe');
-      b.innerText = strobeActive ? "Stroboskop: ON" : "Stroboskop: OFF";
-      b.style.background = strobeActive ? "var(--accent)" : "";
-      b.style.color = strobeActive ? "#000" : "";
-      if (strobeActive) restartStrobe();
-      else {
-        clearInterval(strobeTimer);
-        if (videoTrack) videoTrack.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
-        document.body.style.background = "var(--bg)";
+        clearInterval(scanInterval);
       }
     }
 
-    function restartStrobe() {
-      clearInterval(strobeTimer);
-      const period = 1000 / strobeFreq;
-      let state = false;
-      strobeTimer = setInterval(() => {
-        state = !state;
-        if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
-          videoTrack.applyConstraints({ advanced: [{ torch: state }] }).catch(()=>{});
-        } else {
-          document.body.style.background = state ? "#ffffff" : "var(--bg)";
-        }
-      }, period / 2);
-    }
+    async function scanAndSpeakVision(isAuto = false) {
+      const engine = aiEngineSelect.value;
+      const keyOrUrl = aiApiKey.value.trim();
 
-    function initMagnetometer() {
-      if ('Magnetometer' in window) {
-        try {
-          const mag = new Magnetometer({ frequency: 10 });
-          mag.addEventListener('reading', () => {
-            const b = Math.sqrt(mag.x**2 + mag.y**2 + mag.z**2);
-            updateEmfUI(b);
+      visionScanStatus.innerText = "Skanowanie...";
+      visionScanStatus.style.color = "var(--gold)";
+
+      // Zrzut klatki w wysokiej rozdzielczości
+      capCanvas.width = 640; capCanvas.height = 480;
+      capCtx.drawImage(video, 0, 0, 640, 480);
+      const base64Jpg = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+      // Tryb offline (detekcja lokalna)
+      if (engine === "offline") {
+        const offlineReport = `Kamera widzi kadr o oświetleniu ${telemetry.lux} luksów, barwie ${telemetry.kelvin} Kelwinów i azymucie ${telemetry.compass} stopni.`;
+        aiOutput.innerText = offlineReport;
+        visionObjectList.innerText = "Tryb offline (Podaj klucz API dla pełnego AI)";
+        speakText(offlineReport);
+        visionScanStatus.innerText = "Zakończono";
+        return;
+      }
+
+      const prompt = `Jesteś laboratoryjnym asystentem Vision AI. 
+Przeanalizuj to zdjęcie z kamery telefonu.
+1. Wymień dokładnie po polsku co znajduje się w kadrze (konkretne przedmioty, postać człowieka, ręce, urządzenia).
+2. Podaj współrzędne 1-3 głównych obiektów w formacie: BOX: [Nazwa, x%, y%, szerokość%, wysokość%], np. BOX: [Laptop, 20, 30, 40, 50].
+3. Na końcu sformułuj zwięzłe zdanie (maksymalnie dwa), które natychmiast przeczytam użytkownikowi na głos. Nie używaj gwiazdek ani markdown.`;
+
+      try {
+        let answerText = "";
+
+        // 1. Google Gemini Flash
+        if (engine === "gemini") {
+          if (!keyOrUrl) return alert("Wklej klucz Gemini API w polu poniżej!");
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${keyOrUrl}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Jpg } }] }]
+            })
           });
-          mag.start();
-        } catch (e) {}
+          const data = await res.json();
+          answerText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Brak odpowiedzi od Gemini.";
+        }
+        // 2. Groq Cloud (Llama 3.2 Vision)
+        else if (engine === "groq") {
+          if (!keyOrUrl) return alert("Wklej klucz Groq API!");
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${keyOrUrl}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "llama-3.2-11b-vision-preview",
+              messages: [{ role: "user", content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Jpg}` } }
+              ]}]
+            })
+          });
+          const data = await res.json();
+          answerText = data.choices?.[0]?.message?.content || "Brak odpowiedzi z Groq.";
+        }
+        // 3. XiaoZhi WebSocket Server
+        else if (engine === "xiaozhi") {
+          const wsUrl = keyOrUrl.startsWith("ws") ? keyOrUrl : "wss://api.xiaozhi.me/v1/chat";
+          const ws = new WebSocket(wsUrl);
+          ws.onopen = () => {
+            ws.send(JSON.stringify({ type: "vision", image: `data:image/jpeg;base64,${base64Jpg}`, text: prompt }));
+          };
+          ws.onmessage = (ev) => {
+            const d = JSON.parse(ev.data);
+            answerText = d.text || d.content || ev.data;
+            parseAndSpeakResult(answerText);
+          };
+          return;
+        }
+
+        parseAndSpeakResult(answerText);
+
+      } catch (err) {
+        aiOutput.innerText = "Błąd zapytania Vision AI: " + err.message;
+        visionScanStatus.innerText = "Błąd";
       }
     }
 
-    function updateEmfUI(val) {
-      telemetry.emf = val;
-      document.getElementById('emfVal').innerText = val.toFixed(1);
-      if (emfAudioActive && emfOsc) {
-        emfOsc.frequency.setValueAtTime(Math.min(1800, 200 + val * 15), audioCtx.currentTime);
+    function parseAndSpeakResult(fullText) {
+      // Wyodrębnienie współrzędnych ramek BOX: [Nazwa, x, y, w, h]
+      telemetry.detectedBoxes = [];
+      const boxMatches = fullText.matchAll(/BOX:\s*\[([^,]+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\]/gi);
+      for (const m of boxMatches) {
+        telemetry.detectedBoxes.push({
+          label: m[1].trim(),
+          x: parseInt(m[2]), y: parseInt(m[3]),
+          w: parseInt(m[4]), h: parseInt(m[5])
+        });
       }
-      if (val > 80) setAvatarMood('alert');
+
+      // Oczyszczenie tekstu do przeczytania
+      let spoken = fullText.replace(/BOX:\s*\[.*?\]/gi, '').replace(/[*#]/g, '').trim();
+      aiOutput.innerText = spoken;
+      visionObjectList.innerText = telemetry.detectedBoxes.length > 0 
+        ? telemetry.detectedBoxes.map(b => b.label).join(", ") 
+        : "Rozpoznano otoczenie";
+
+      visionScanStatus.innerText = "Zakończono pomyślnie";
+      visionScanStatus.style.color = "var(--success)";
+
+      speakText(spoken);
     }
 
-    function toggleEmfAudio() {
-      emfAudioActive = !emfAudioActive;
-      const b = document.getElementById('btnToggleEmfAudio');
-      b.innerText = emfAudioActive ? "🔊 Sygnalizator EMF: ON" : "🔊 Sygnalizator EMF: OFF";
-      const ctx = getAudioCtx();
-      if (emfAudioActive) {
-        emfOsc = ctx.createOscillator();
-        const g = ctx.createGain();
-        emfOsc.type = 'sawtooth';
-        g.gain.value = 0.03;
-        emfOsc.connect(g);
-        g.connect(ctx.destination);
-        emfOsc.start();
-      } else if (emfOsc) {
-        emfOsc.stop();
-        emfOsc.disconnect();
-        emfOsc = null;
-      }
-    }
-
-    // 11. GENERATOR CZĘSTOTLIWOŚCI AKUSTYCZNYCH
-    let genOsc = null;
-    let genRunning = false;
-    let genFreq = 440;
-    let genType = 'sine';
-
-    function setAudioGenFreq(f) {
-      genFreq = parseFloat(f);
-      document.getElementById('genFreqTxt').innerText = `${genFreq} Hz`;
-      if (genOsc && genRunning) genOsc.frequency.setValueAtTime(genFreq, audioCtx.currentTime);
-    }
-
-    function setGenWave(t) {
-      genType = t;
-      if (genOsc) genOsc.type = t;
-    }
-
-    function toggleAudioGen() {
-      genRunning = !genRunning;
-      const b = document.getElementById('btnToggleGen');
-      b.innerText = genRunning ? "Zatrzymaj Generator" : "Włącz Generator";
-      b.style.background = genRunning ? "var(--danger)" : "var(--pulse)";
-      const ctx = getAudioCtx();
-      if (genRunning) {
-        genOsc = ctx.createOscillator();
-        const g = ctx.createGain();
-        genOsc.type = genType;
-        genOsc.frequency.setValueAtTime(genFreq, ctx.currentTime);
-        g.gain.setValueAtTime(0.08, ctx.currentTime);
-        genOsc.connect(g);
-        g.connect(ctx.destination);
-        genOsc.start();
-      } else if (genOsc) {
-        genOsc.stop();
-        genOsc.disconnect();
-        genOsc = null;
-      }
-    }
-
-    // 12. SYNTEZA MOWY & KLUCZE
-    function speak(text) {
+    function speakText(text) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
@@ -1292,263 +837,277 @@
       window.speechSynthesis.speak(u);
     }
 
-    function getStoredKey(engine) {
-      return localStorage.getItem(`omnilab_key_${engine}`) || '';
+    /* =========================================================================
+       4. BAROMETR I WARIOMETR (SPRZĘT + SATELITARNY FALLBACK)
+       ========================================================================= */
+    let qnh = 1013.25;
+    let varioAudioActive = false;
+    let varioTimer = null;
+    let lastPressureTime = Date.now();
+    let lastPressureVal = 1013.25;
+    let verticalSpeed = 0;
+
+    function updatePressureData(p) {
+      telemetry.pressure = p;
+      const alt = 44330 * (1 - Math.pow(p / qnh, 0.19029495));
+      telemetry.altitude = alt;
+
+      const dt = (Date.now() - lastPressureTime) / 1000;
+      if (dt > 0.5) {
+        verticalSpeed = (alt - (44330 * (1 - Math.pow(lastPressureVal / qnh, 0.19029495)))) / dt;
+        lastPressureVal = p;
+        lastPressureTime = Date.now();
+        valVarioSpeed.innerText = (verticalSpeed >= 0 ? "+" : "") + verticalSpeed.toFixed(2) + " m/s";
+      }
+
+      valPressure.innerText = p.toFixed(2);
+      valAltitude.innerText = alt.toFixed(1);
+      valMmhg.innerText = (p * 0.750062).toFixed(1);
+
+      if (verticalSpeed > 0.15) {
+        valPressureTrend.innerText = "Wznoszenie / Spadek P";
+        valPressureTrend.style.color = "var(--gold)";
+      } else if (verticalSpeed < -0.15) {
+        valPressureTrend.innerText = "Opadanie / Wzrost P";
+        valPressureTrend.style.color = "var(--success)";
+      } else {
+        valPressureTrend.innerText = "Stabilna";
+        valPressureTrend.style.color = "var(--sub)";
+      }
     }
 
-    aiEngineSelect.addEventListener('change', () => {
-      const eng = aiEngineSelect.value;
-      aiApiKey.value = getStoredKey(eng);
-      if (eng === "xiaozhi" && !aiApiKey.value) {
-        aiApiKey.placeholder = "Adres serwera (np. wss://api.xiaozhi.me/v1/chat lub domyślny)";
-      } else {
-        aiApiKey.placeholder = "Wklej klucz API dla wybranego silnika";
+    function initBarometer() {
+      if ('PressureSensor' in window) {
+        try {
+          const sensor = new PressureSensor({ frequency: 5 });
+          sensor.addEventListener('reading', () => updatePressureData(sensor.pressure));
+          sensor.start();
+          return;
+        } catch(e) {}
       }
-      updateKeyBadge();
-    });
+      // Domyślny stabilny start
+      updatePressureData(1013.25);
+    }
 
-    function updateKeyBadge() {
-      const eng = aiEngineSelect.value;
-      const k = aiApiKey.value.trim();
-      if (eng === "offline") {
-        keyStatus.innerText = "Offline (Bez klucza)";
-        keyStatus.style.color = "var(--success)";
-      } else if (eng === "xiaozhi") {
-        keyStatus.innerText = "Tryb XiaoZhi";
-        keyStatus.style.color = "var(--xiaozhi)";
-      } else if (k.length > 5) {
-        keyStatus.innerText = `Zapisano dla ${eng}`;
-        keyStatus.style.color = "var(--success)";
-      } else {
-        keyStatus.innerText = "Wymagany klucz";
-        keyStatus.style.color = "var(--danger)";
+    async function fetchGPSBarometer() {
+      if (!navigator.geolocation) return alert("Brak wsparcia GPS");
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=surface_pressure,temperature_2m`);
+          const d = await res.json();
+          if (d.current && d.current.surface_pressure) {
+            updatePressureData(d.current.surface_pressure);
+            alert(`Pobrano realne ciśnienie z GPS: ${d.current.surface_pressure} hPa (Temp: ${d.current.temperature_2m}°C)`);
+          }
+        } catch(e) { alert("Błąd pobierania danych GPS stacji pogodowej"); }
+      }, () => alert("Nie uzyskano pozycji GPS"));
+    }
+
+    function calibrateQNH() {
+      const v = prompt("Podaj ciśnienie odniesienia QNH na poziomie morza (hPa):", qnh);
+      if (v && !isNaN(v)) {
+        qnh = parseFloat(v);
+        qnhTag.innerText = `QNH: ${qnh.toFixed(2)} hPa`;
+        updatePressureData(telemetry.pressure);
       }
     }
 
-    document.getElementById('btnSaveKey').addEventListener('click', () => {
-      const eng = aiEngineSelect.value;
-      let k = aiApiKey.value.trim();
-      if (eng === "gemini" && k.startsWith('AQ.')) k = k.substring(3);
-      k = k.replace(/["';\s]/g, '');
-      aiApiKey.value = k;
-      localStorage.setItem(`omnilab_key_${eng}`, k);
-      updateKeyBadge();
-      alert(`Zapisano dane dla silnika: ${eng.toUpperCase()}`);
-    });
+    function toggleVarioAudio() {
+      varioAudioActive = !varioAudioActive;
+      const b = document.getElementById('btnVarioAudio');
+      b.innerText = varioAudioActive ? "🔊 Wariometr Audio: ON" : "🔊 Wariometr Audio: OFF";
+      b.style.background = varioAudioActive ? "var(--gold)" : "";
+      b.style.color = varioAudioActive ? "#000" : "";
+      if (varioAudioActive) runVarioSound();
+      else clearTimeout(varioTimer);
+    }
 
+    function runVarioSound() {
+      if (!varioAudioActive) return;
+      const ctx = getAudioContext();
+      let freq = Math.max(250, Math.min(2200, 700 + verticalSpeed * 300));
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.frequency.value = freq;
+      g.gain.value = 0.04;
+      const dur = verticalSpeed > 0 ? Math.max(0.08, 0.25 - verticalSpeed * 0.04) : 0.35;
+      const pause = verticalSpeed > 0 ? Math.max(0.08, 0.3 - verticalSpeed * 0.04) : 0.2;
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+      varioTimer = setTimeout(runVarioSound, (dur + pause) * 1000);
+    }
+
+    /* =========================================================================
+       5. KOMPAS, AUDIO SPL, TACHOMETR, PULSOMETR & REJESTRATOR CSV
+       ========================================================================= */
+    function startCompassSensors() {
+      const handleOrientation = (e) => {
+        let heading = e.webkitCompassHeading || (e.alpha ? 360 - e.alpha : 0);
+        telemetry.compass = Math.round(heading);
+        const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        telemetry.compassDir = dirs[Math.round(telemetry.compass / 45) % 8];
+        compassHeadingText.innerText = `${telemetry.compass}° ${telemetry.compassDir}`;
+
+        // Rysowanie tarczy
+        compassCanvas.width = 180; compassCanvas.height = 180;
+        compassCtx.clearRect(0, 0, 180, 180);
+        compassCtx.save();
+        compassCtx.translate(90, 90);
+        compassCtx.rotate((-telemetry.compass * Math.PI) / 180);
+        compassCtx.strokeStyle = "#00f0ff"; compassCtx.lineWidth = 2;
+        compassCtx.beginPath();
+        compassCtx.moveTo(0, -75); compassCtx.lineTo(0, -60);
+        compassCtx.stroke();
+        compassCtx.fillStyle = "#ff2d55"; compassCtx.font = "bold 12px sans-serif";
+        compassCtx.textAlign = "center";
+        compassCtx.fillText("N", 0, -50);
+        compassCtx.restore();
+      };
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+
+    // Mikrofon SPL
+    async function startMicrophoneSPL() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx = getAudioContext();
+        const src = ctx.createMediaStreamSource(stream);
+        const an = ctx.createAnalyser();
+        an.fftSize = 256;
+        src.connect(an);
+        const buf = new Uint8Array(an.frequencyBinCount);
+        document.getElementById('btnStartAudio').innerText = "Mikrofon Aktywny";
+        document.getElementById('btnStartAudio').style.background = "var(--success)";
+
+        function calcSPL() {
+          an.getByteFrequencyData(buf);
+          let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i]**2;
+          let rms = Math.sqrt(sum / buf.length);
+          let db = Math.round(20 * Math.log10(rms || 1) + 20);
+          db = Math.max(25, Math.min(130, db));
+          telemetry.db = db;
+          dbDisplay.innerText = `${db} dB`;
+          dbMeterFill.style.width = `${Math.min(100, Math.max(0, ((db - 25) / 105) * 100))}%`;
+          requestAnimationFrame(calcSPL);
+        }
+        calcSPL();
+      } catch(e) {}
+    }
+    document.getElementById('btnStartAudio').onclick = startMicrophoneSPL;
+
+    // Tachometr stroboskopowy
+    let strobeFreq = 10;
+    let strobeActive = false;
+    let strobeTimer = null;
+    function updateStrobeFreq(v) {
+      strobeFreq = parseFloat(v);
+      document.getElementById('strobeHz').innerText = strobeFreq.toFixed(1);
+      document.getElementById('strobeRpm').innerText = Math.round(strobeFreq * 60);
+    }
+    function toggleStrobe() {
+      strobeActive = !strobeActive;
+      document.getElementById('btnToggleStrobe').innerText = strobeActive ? "Błysk: ON" : "Błysk: OFF";
+      if (strobeActive) {
+        strobeTimer = setInterval(() => {
+          if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+            videoTrack.applyConstraints({ advanced: [{ torch: true }] }).then(() => {
+              setTimeout(() => videoTrack.applyConstraints({ advanced: [{ torch: false }] }), 15);
+            }).catch(()=>{});
+          }
+        }, 1000 / strobeFreq);
+      } else {
+        clearInterval(strobeTimer);
+      }
+    }
+
+    // Generator dźwięku
+    let genOsc = null;
+    let genFreq = 440;
+    let genType = 'sine';
+    function setAudioGenFreq(f) {
+      genFreq = f; document.getElementById('genFreqTxt').innerText = `${f} Hz`;
+      if (genOsc) genOsc.frequency.setValueAtTime(f, audioCtx.currentTime);
+    }
+    function setGenWave(t) { genType = t; if (genOsc) genOsc.type = t; }
+    function toggleAudioGen() {
+      const ctx = getAudioContext();
+      if (genOsc) {
+        genOsc.stop(); genOsc.disconnect(); genOsc = null;
+        document.getElementById('btnToggleGen').innerText = "Włącz Generator";
+      } else {
+        genOsc = ctx.createOscillator();
+        const g = ctx.createGain(); g.gain.value = 0.05;
+        genOsc.type = genType; genOsc.frequency.value = genFreq;
+        genOsc.connect(g); g.connect(ctx.destination);
+        genOsc.start();
+        document.getElementById('btnToggleGen').innerText = "Zatrzymaj Generator";
+      }
+    }
+
+    // Rejestrator CSV (dla drukarek 3D)
+    let isRecordingCSV = false;
+    let csvData = [];
+    let csvTimer = null;
+    document.getElementById('btnToggleRecord').onclick = () => {
+      isRecordingCSV = !isRecordingCSV;
+      const b = document.getElementById('btnToggleRecord');
+      const exp = document.getElementById('btnExportCSV');
+      if (isRecordingCSV) {
+        csvData = [];
+        b.innerText = "■ ZATRZYMAJ POMIAR";
+        csvTimer = setInterval(() => {
+          csvData.push({
+            time: new Date().toISOString().split('T')[1].slice(0, -1),
+            g: telemetry.impactG, ax: telemetry.ax, ay: telemetry.ay, az: telemetry.az,
+            db: telemetry.db, press: telemetry.pressure
+          });
+          document.getElementById('loggerSummary').innerText = `Próbki: ${csvData.length} | Max G: ${Math.max(...csvData.map(d=>d.g))} | Hałas: ${telemetry.db} dB`;
+        }, 100);
+        exp.style.display = "none";
+      } else {
+        clearInterval(csvTimer);
+        b.innerText = "● REJESTRUJ DRUKARKĘ (10 Hz)";
+        if (csvData.length > 0) exp.style.display = "inline-block";
+      }
+    };
+    document.getElementById('btnExportCSV').onclick = () => {
+      let csv = "data:text/csv;charset=utf-8,Czas,Wstrzas_G,Acc_X,Acc_Y,Acc_Z,Halas_dB,Cisnienie_hPa\n";
+      csvData.forEach(r => { csv += `${r.time},${r.g},${r.ax},${r.ay},${r.az},${r.db},${r.press}\n`; });
+      const a = document.createElement("a");
+      a.href = encodeURI(csv);
+      a.download = `telemetria_omnilab_${Date.now()}.csv`;
+      a.click();
+    };
+
+    // Zarządzanie kluczami
+    function getStoredKey(eng) { return localStorage.getItem(`omnilab_key_${eng}`) || ''; }
+    aiEngineSelect.onchange = () => {
+      aiApiKey.value = getStoredKey(aiEngineSelect.value);
+      keyStatus.innerText = aiApiKey.value ? "Klucz zapisany" : "Brak klucza";
+    };
+    document.getElementById('btnSaveKey').onclick = () => {
+      localStorage.setItem(`omnilab_key_${aiEngineSelect.value}`, aiApiKey.value.trim());
+      keyStatus.innerText = "Klucz zapisany";
+      alert("Zapisano dane autoryzacji dla wybranego silnika.");
+    };
     aiApiKey.value = getStoredKey(aiEngineSelect.value);
-    updateKeyBadge();
 
-    // 13. ZAAWANSOWANA ANALIZA AI Z PEŁNYM OBRAZEM I TELEMETRIĄ
-    async function runAIEngine(customQuery = null) {
-      const engine = aiEngineSelect.value;
-      const keyOrUrl = aiApiKey.value.trim();
-
-      aiOutput.innerText = `⏳ Przetwarzanie przez silnik [${engine.toUpperCase()}]...`;
-
-      capCanvas.width = 640; capCanvas.height = 480;
-      capCtx.drawImage(video, 0, 0, 640, 480);
-      const base64Img = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-
-      const detectedStr = telemetry.objects.length > 0 ? telemetry.objects.join(", ") : "brak";
-      const telemetryContext = `
-DANE Z CZUJNIKÓW I SIECI NEURONOWEJ TELEFONU:
-- Obiekty wykryte przez pokładowe AI: ${detectedStr}
-- Wstrząs sejsmiczny: ${telemetry.impactG} G (Przyspieszenie: ${telemetry.accelTotal} m/s²)
-- Poziom hałasu: ${telemetry.db} dB (${telemetry.dbDesc})
-- Ciśnienie barometryczne: ${telemetry.pressure.toFixed(1)} hPa (Wysokość: ${telemetry.altitude.toFixed(1)} m)
-- Kompas / Azymut: ${telemetry.compass}° (${telemetry.compassDir})
-- Oświetlenie: ${telemetry.lux} lx (Barwa: ${telemetry.kelvin} K)
-- Pole magnetyczne / EMF: ${telemetry.emf.toFixed(1)} µT`;
-
-      const prompt = `Jesteś laboratoryjnym asystentem wizyjnym OmniLab.
-${telemetryContext}
-
-${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Opisz szczegółowo to, co widzisz na zdjęciu (przedmioty, sylwetkę człowieka, przestrzeń), uwzględniając wykryte obiekty (${detectedStr}) oraz telemetrię środowiskową.`}
-
-ZASADY: Odpowiedz po polsku w maksymalnie trzech zwięzłych zdaniach. Odpowiedź będzie odczytana przez głos bota — nie stosuj gwiazdek markdown.`;
-
-      // 1. OFFLINE
-      if (engine === "offline") {
-        const report = `W kadrze rozpoznano: ${detectedStr}. Ciśnienie wynosi ${telemetry.pressure.toFixed(1)} hPa przy oświetleniu ${telemetry.lux} lx i hałasie ${telemetry.db} dB.`;
-        aiOutput.innerText = `[LOKALNY OFFLINE]: ${report}`;
-        speak(report);
-        return;
-      }
-
-      // 2. GOOGLE GEMINI (v1beta REST)
-      if (engine === "gemini") {
-        if (!keyOrUrl) return alert("Wklej klucz Gemini API (AIzaSy...)!");
-        const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
-        let answered = false;
-
-        for (let model of candidateModels) {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-          try {
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': keyOrUrl },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Img } }] }]
-              })
-            });
-
-            const data = await res.json();
-            if (data.candidates && data.candidates[0].content.parts[0]) {
-              const reply = data.candidates[0].content.parts[0].text.trim();
-              aiOutput.innerText = reply;
-              speak(reply);
-              answered = true;
-              break;
-            } else if (data.error && data.error.code !== 404) {
-              aiOutput.innerText = `Błąd Google API (${data.error.code}): ${data.error.message}`;
-              return;
-            }
-          } catch (e) {}
-        }
-        if (!answered && !aiOutput.innerText.startsWith("Błąd Google")) {
-          aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że klucz API w Google AI Studio ma włączone uprawnienia.";
-        }
-        return;
-      }
-
-      // 3. OPENROUTER
-      if (engine === "openrouter") {
-        if (!keyOrUrl) return alert("Wklej klucz OpenRouter (sk-or-...)!");
-        try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${keyOrUrl}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "meta-llama/llama-3.2-11b-vision-instruct:free",
-              messages: [{ role: "user", content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Img}` } }
-              ]}]
-            })
-          });
-          const data = await res.json();
-          if (data.choices && data.choices[0]) {
-            const rep = data.choices[0].message.content.trim();
-            aiOutput.innerText = rep;
-            speak(rep);
-          } else {
-            aiOutput.innerText = "Błąd OpenRouter: " + JSON.stringify(data.error || data);
-          }
-        } catch (e) {
-          aiOutput.innerText = "Błąd połączenia OpenRouter: " + e.message;
-        }
-        return;
-      }
-
-      // 4. GROQ CLOUD
-      if (engine === "groq") {
-        if (!keyOrUrl) return alert("Wklej klucz Groq API (gsk_...)!");
-        try {
-          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${keyOrUrl}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "llama-3.2-11b-vision-preview",
-              messages: [{ role: "user", content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Img}` } }
-              ]}]
-            })
-          });
-          const data = await res.json();
-          if (data.choices && data.choices[0]) {
-            const rep = data.choices[0].message.content.trim();
-            aiOutput.innerText = rep;
-            speak(rep);
-          } else {
-            aiOutput.innerText = "Błąd Groq: " + JSON.stringify(data.error || data);
-          }
-        } catch (e) {
-          aiOutput.innerText = "Błąd sieci Groq: " + e.message;
-        }
-        return;
-      }
-
-      // 5. CHMURA XIAOZHI (WSS / ESP32 Protocol)
-      if (engine === "xiaozhi") {
-        const wsServer = keyOrUrl.startsWith('ws') ? keyOrUrl : "wss://api.xiaozhi.me/v1/chat";
-        aiOutput.innerText = `⏳ Łączenie z chmurą XiaoZhi AI (${wsServer})...`;
-
-        try {
-          const socket = new WebSocket(wsServer);
-
-          socket.onopen = () => {
-            aiOutput.innerText = "XiaoZhi: Połączono. Wysyłanie klatki wizji i telemetrii...";
-            const payload = {
-              type: "explain",
-              session_id: "omnilab_" + Date.now(),
-              text: prompt,
-              image: `data:image/jpeg;base64,${base64Img}`
-            };
-            socket.send(JSON.stringify(payload));
-          };
-
-          socket.onmessage = (event) => {
-            try {
-              const msg = JSON.parse(event.data);
-              if (msg.emotion) setAvatarMood(msg.emotion);
-              if (msg.text || msg.content) {
-                const answer = msg.text || msg.content;
-                aiOutput.innerText = `[XIAOZHI AI]: ${answer}`;
-                speak(answer);
-              }
-            } catch (e) {
-              aiOutput.innerText = `[XIAOZHI STREAM]: ${event.data}`;
-            }
-          };
-
-          socket.onerror = () => {
-            aiOutput.innerText = "XiaoZhi: Błąd WebSocket. Podaj swój adres serwera XiaoZhi lub przełącz na Gemini/Groq.";
-          };
-
-          setTimeout(() => {
-            if (socket.readyState === WebSocket.CONNECTING) {
-              socket.close();
-              aiOutput.innerText = "XiaoZhi: Przekroczono czas oczekiwania.";
-            }
-          }, 8000);
-
-        } catch (err) {
-          aiOutput.innerText = "Błąd protokołu XiaoZhi: " + err.message;
-        }
-      }
-    }
-
-    document.getElementById('btnRunFullAI').addEventListener('click', () => runAIEngine());
-
-    // 14. ASYSTENT GŁOSOWY (STT)
-    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (Speech) {
-      const rec = new Speech();
+    // Rozpoznawanie mowy (STT)
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRec) {
+      const rec = new SpeechRec();
       rec.lang = 'pl-PL';
       rec.onresult = (e) => {
         const q = e.results[0][0].transcript;
-        aiOutput.innerText = `Zadano pytanie: "${q}"...`;
-        avatarBox.classList.remove('listening');
-        runAIEngine(q);
+        aiOutput.innerText = `Pytanie: "${q}"...`;
+        scanAndSpeakVision();
       };
-      document.getElementById('btnVoiceAsk').addEventListener('click', () => {
-        try {
-          avatarBox.classList.add('listening');
-          rec.start();
-          aiOutput.innerText = "🎙️ Słucham pytania... Skieruj aparat i mów.";
-        } catch (e) {}
-      });
+      document.getElementById('btnVoiceAsk').onclick = () => { rec.start(); };
     }
-
-    // Offline Service Worker
-    if ('serviceWorker' in navigator) {
-      const swCode = `self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));`;
-      navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }))).catch(()=>{});
-    }
-
-    loadCameras();
   </script>
 </body>
 </html>

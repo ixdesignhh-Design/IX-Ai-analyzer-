@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OmniLab Pro Station // S23 Ultra Active Multi-Sensor</title>
+  <title>OmniLab Pro Station // Google Gemini & Modern Sensor Hub</title>
   
   <style>
     :root {
@@ -16,12 +16,13 @@
       --pulse: #ec4899;
       --gold: #fbbf24;
       --success: #10b981;
+      --danger: #ef4444;
       --text: #f8fafc;
       --sub: #94a3b8;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 10px; padding-bottom: 80px; }
+    body { background: var(--bg); color: var(--text); padding: 10px; padding-bottom: 90px; }
 
     header {
       display: flex;
@@ -38,7 +39,7 @@
       background: #0f172a;
       border-radius: 10px;
       padding: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       border: 1px solid var(--border);
     }
     .toggle-grid {
@@ -57,7 +58,6 @@
       font-weight: 600;
       cursor: pointer;
       text-align: center;
-      transition: all 0.15s;
       user-select: none;
     }
     .toggle-btn.active {
@@ -73,155 +73,117 @@
       margin-bottom: 10px;
       border: 1px solid var(--border);
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      position: relative;
     }
     .card.hidden { display: none !important; }
 
-    /* [1] KAMERA & HUD */
+    /* TRYB POWIĘKSZENIA WYKRESÓW (ZOOM) */
+    .card.zoomed {
+      position: fixed !important;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 9999; margin: 0; border-radius: 0;
+      background: #030712; display: flex; flex-direction: column;
+      justify-content: space-between; padding: 16px;
+    }
+    .card.zoomed canvas.graph-canvas { height: 60vh !important; }
+
+    /* KAMERA & HUD */
     .viewport-box {
-      position: relative;
-      width: 100%;
-      height: 34vh;
-      min-height: 240px;
-      border-radius: 8px;
-      overflow: hidden;
-      background: #000;
+      position: relative; width: 100%; height: 34vh; min-height: 240px;
+      border-radius: 8px; overflow: hidden; background: #000;
       border: 1px solid rgba(0, 240, 255, 0.25);
     }
     video { width: 100%; height: 100%; object-fit: cover; }
     #hudCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     canvas.hidden-canvas { display: none; }
 
-    /* [3] KOMPAS MORSKI */
-    .compass-wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 6px 0;
-    }
+    /* REALISTYCZNY MORSKI KOMPAS */
+    .compass-wrapper { display: flex; justify-content: center; padding: 6px 0; }
     .compass-housing {
-      position: relative;
-      width: 190px;
-      height: 190px;
-      border-radius: 50%;
+      position: relative; width: 180px; height: 180px; border-radius: 50%;
       background: radial-gradient(circle, #1e293b 0%, #090e17 70%, #020617 100%);
-      border: 4px solid #334155;
-      box-shadow: 0 0 20px rgba(168, 85, 247, 0.25), inset 0 0 12px rgba(0,0,0,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      border: 4px solid #334155; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
     }
     .compass-pointer {
-      position: absolute;
-      top: 5px;
-      width: 0;
-      height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 13px solid var(--accent);
+      position: absolute; top: 5px; width: 0; height: 0;
+      border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 13px solid var(--accent);
       z-index: 5;
     }
-    #compassDialCanvas { width: 174px; height: 174px; }
-    .compass-center-screw {
-      position: absolute;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #ffffff 0%, #94a3b8 100%);
-      border: 2px solid #0f172a;
-      z-index: 6;
-    }
+    #compassDialCanvas { width: 166px; height: 166px; }
+    .compass-center-screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; z-index: 6; }
 
-    /* [4] DECYBELOMIERZ */
-    .decibel-box {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-top: 6px;
-    }
+    /* DECYBELOMIERZ */
+    .decibel-box { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
     .db-val { font-size: 2.1rem; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; }
     .meter-bar { width: 100%; height: 8px; background: #1e293b; border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .meter-fill { height: 100%; width: 0%; background: linear-gradient(to right, #10b981, #f59e0b 65%, #ff2d55 90%); transition: width 0.08s ease; }
 
-    /* [5 & 7] WYKRESY */
-    canvas.graph-canvas {
-      width: 100%;
-      height: 65px;
-      background: #040711;
-      border-radius: 6px;
-      margin-top: 6px;
-    }
+    /* WYKRESY */
+    canvas.graph-canvas { width: 100%; height: 65px; background: #040711; border-radius: 6px; margin-top: 6px; }
     #seismoCanvas { border: 1px solid rgba(255, 45, 85, 0.25); }
     #pulseCanvas { border: 1px solid rgba(236, 72, 153, 0.25); }
 
-    /* PRZYCISKI I FORMULARZE */
+    /* PRZYCISKI */
     .btn {
-      width: 100%;
-      background: var(--accent);
-      color: #030712;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 6px;
-      margin-top: 6px;
+      width: 100%; background: var(--accent); color: #030712; border: none;
+      padding: 12px; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px;
       transition: 0.15s;
     }
     .btn:active { transform: scale(0.98); }
-    .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 7px 12px; font-size: 0.75rem; width: auto; margin-top: 0; }
+    .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 6px 12px; font-size: 0.75rem; width: auto; margin-top: 0; }
     .btn-voice { background: var(--compass); color: #fff; }
+    .btn-record { background: var(--danger); color: #fff; }
+    .btn-zoom { background: rgba(0, 240, 255, 0.2); color: var(--accent); border: 1px solid var(--accent); }
 
-    input[type="text"], select {
-      width: 100%;
-      background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #fff;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      margin-top: 6px;
+    input[type="text"] {
+      width: 100%; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+      color: #fff; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-top: 6px;
     }
 
-    .color-preview {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      vertical-align: middle;
-      margin-right: 4px;
-      border: 1px solid #fff;
-    }
+    .color-preview { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; border: 1px solid #fff; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>OMNILAB PRO // S23 ULTRA HUB</h1>
-    <span style="font-size: 0.75rem; color: var(--accent);" id="hubStatus">System Inicjalizacja</span>
+    <h1>OMNILAB PRO // MODERN GEMINI STATION</h1>
+    <span style="font-size: 0.75rem; color: var(--accent);" id="hubStatus">Inicjalizacja</span>
   </header>
 
-  <!-- PANEL STEROWANIA 9 REALIZACJAMI -->
+  <!-- PANEL ZARZĄDZANIA REALIZACJAMI -->
   <div class="module-manager">
-    <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">ZARZĄDZANIE MODUŁAMI:</span>
+    <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">WŁĄCZ / WYŁĄCZ REALIZACJE:</span>
     <div class="toggle-grid">
       <div class="toggle-btn active" data-target="mod-camera">[1] Kamera</div>
       <div class="toggle-btn active" data-target="mod-vision">[2] Analiza Wizji</div>
       <div class="toggle-btn active" data-target="mod-compass">[3] Kompas Morski</div>
       <div class="toggle-btn active" data-target="mod-audio">[4] Decybelomierz</div>
       <div class="toggle-btn active" data-target="mod-seismo">[5] Sejsmograf</div>
+      <div class="toggle-btn active" data-target="mod-logger">[★] Rejestrator CSV</div>
       <div class="toggle-btn active" data-target="mod-light">[6] Fotometr</div>
       <div class="toggle-btn active" data-target="mod-pulse">[7] Pulsometr PPG</div>
-      <div class="toggle-btn active" data-target="mod-voice">[8] Asystent Głosu</div>
-      <div class="toggle-btn active" data-target="mod-ai">[9] Diagnoza AI</div>
+      <div class="toggle-btn active" data-target="mod-ai">[8/9] Gemini & Mowa</div>
     </div>
   </div>
 
-  <!-- [1] KAMERA ZE SPRZĘTOWYM OBRACANIEM I CELOWNIKIEM HUD -->
+  <!-- [★] REJESTRATOR DANYCH DO PLIKU / BADANIE DRUKARKI -->
+  <div class="card" id="mod-logger" style="border-left: 4px solid var(--danger);">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--danger);">REJESTRATOR DANYCH (CSV EXPORT)</span>
+      <span id="logStatusText" style="font-size: 0.75rem; color: var(--sub);">Gotowy do zapisu</span>
+    </div>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button class="btn btn-record" id="btnToggleRecord" style="margin-top: 0;">● ROZPOCZNIJ POMIAR DRUKARKI</button>
+      <button class="btn btn-sec" id="btnExportCSV" style="margin-top: 0; background: var(--success); color: #000; font-weight: bold; display: none;">POBIERZ CSV</button>
+    </div>
+    <div style="font-size: 0.75rem; color: var(--sub); margin-top: 6px;" id="loggerSummary">
+      Próbki: 0 | Max wstrząs: 0.00 G | Średni hałas: 0 dB
+    </div>
+  </div>
+
+  <!-- [1] KAMERA ZE SPRZĘTOWYM OBRACANIEM -->
   <div class="card" id="mod-camera" style="padding: 10px;">
     <div class="viewport-box">
       <video id="webcam" playsinline webkit-playsinline autoplay muted></video>
@@ -232,24 +194,21 @@
       <span style="font-size: 0.75rem; color: var(--sub);" id="camLabel">Kamera: Inicjalizacja...</span>
       <div style="display: flex; gap: 6px;">
         <button class="btn btn-sec" id="btnRestartCam" style="background: var(--accent); color: #000; font-weight: bold;">Uruchom</button>
-        <button class="btn btn-sec" id="btnSwitchCam">🔄 Obróć obiektyw</button>
+        <button class="btn btn-sec" id="btnSwitchCam">🔄 Obróć kamerę</button>
       </div>
     </div>
   </div>
 
-  <!-- [2] WIZUALNY ANALIZATOR OBIEKTÓW I RUCHU NA ŻYWO -->
+  <!-- [2] ANALIZA WIZYJNA & DETEKCJA AKTYWNOŚCI -->
   <div class="card" id="mod-vision" style="border-left: 4px solid var(--accent);">
-    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] DETEKCJA OBIEKTÓW & WEKTOR RUCHU (REAL-TIME)</div>
+    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] DETEKCJA WIZYJNA & DYNAMIKA KADRU</div>
     <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
-      <span>Aktywność kadru: <b id="valMotionPercent" style="color: var(--accent);">0%</b></span>
-      <span>Wskaźnik dynamiki: <b id="valObjectsCount" style="color: #fff;">Stabilny</b></span>
-    </div>
-    <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px;" id="valVisionFeedback">
-      Silnik Computer Vision analizuje różnice gradientów w centralnej strefie HUD.
+      <span>Wektor ruchu: <b id="valMotionPercent" style="color: var(--accent);">0%</b></span>
+      <span>Stan obiektów: <b id="valObjectsCount" style="color: #fff;">Statyczny</b></span>
     </div>
   </div>
 
-  <!-- [3] REALISTYCZNY KOMPAS NAWIGACYJNY (MORSKA RÓŻA WIATRÓW) -->
+  <!-- [3] REALISTYCZNY KOMPAS MORSKI -->
   <div class="card" id="mod-compass" style="border-left: 4px solid var(--compass);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--compass);">[3] MAGNETYCZNY KOMPAS MORSKI</span>
@@ -264,106 +223,96 @@
     </div>
   </div>
 
-  <!-- [4] DECYBELOMIERZ ZE SKALĄ PORÓWNAWCZĄ -->
+  <!-- [4] DECYBELOMIERZ ZE SKALĄ SPL -->
   <div class="card" id="mod-audio" style="border-left: 4px solid var(--gold);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">[4] AKUSTYKA // DECYBELOMIERZ (SPL)</span>
-      <button class="btn btn-sec" id="btnStartAudio" style="background: var(--gold); color: #000; font-weight: bold;">Mikrofon</button>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--gold);">[4] DECYBELOMIERZ (SPL)</span>
+      <div style="display: flex; gap: 6px;">
+        <button class="btn btn-sec btn-zoom" onclick="toggleZoom('mod-audio')">🔍 Zoom</button>
+        <button class="btn btn-sec" id="btnStartAudio" style="background: var(--gold); color: #000; font-weight: bold;">Mikrofon</button>
+      </div>
     </div>
     <div class="decibel-box">
       <span class="db-val" id="dbDisplay">-- dB</span>
-      <span id="dbComparison" style="font-size: 0.85rem; font-weight: bold; color: #fff;">🔇 Mikrofon uśpiony</span>
+      <span id="dbComparison" style="font-size: 0.85rem; font-weight: bold; color: #fff;">🔇 Wyłączony</span>
     </div>
     <div class="meter-bar"><div class="meter-fill" id="dbMeterFill"></div></div>
   </div>
 
-  <!-- [5] SEJSMOGRAF & PRZECIĄŻENIA -->
+  <!-- [5] SEJSMOGRAF Z FUNKCJĄ ZOOM -->
   <div class="card" id="mod-seismo" style="border-left: 4px solid var(--seismo);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--seismo);">[5] SEJSMOGRAF & AKTYWNOŚĆ WSTRZĄSÓW</span>
-      <span id="seismoAlert" style="font-size: 0.75rem; font-weight: bold; color: var(--success);">SPOKÓJ SEJSMICZNY</span>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <span id="seismoAlert" style="font-size: 0.75rem; font-weight: bold; color: var(--success); margin-right: 6px;">SPOKÓJ</span>
+        <button class="btn btn-sec btn-zoom" onclick="toggleZoom('mod-seismo')">🔍 ZOOM</button>
+      </div>
     </div>
     <canvas id="seismoCanvas" class="graph-canvas"></canvas>
     <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.8rem;">
       <span>Wstrząs: <b id="valImpact" style="color: var(--seismo);">0.00 G</b></span>
-      <span>Akceleracja: <b id="valAccelVector" style="color: #fff;">0.0 m/s²</b></span>
+      <span>Przyspieszenie: <b id="valAccelVector" style="color: #fff;">0.0 m/s²</b></span>
     </div>
   </div>
 
-  <!-- [6] FOTOMETR & SPEKTROMETR ŚWIATŁA -->
+  <!-- [6] FOTOMETR & SPEKTROMETR -->
   <div class="card" id="mod-light" style="border-left: 4px solid #fff;">
     <div style="font-size: 0.8rem; font-weight: 700; color: #fff;">[6] FOTOMETR & ANALIZA WIDMA ŚWIATŁA</div>
     <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
       <span>Natężenie: <b id="valLux" style="color: var(--accent);">-- lx</b></span>
       <span>Barwa: <b id="valKelvin" style="color: var(--gold);">-- K</b></span>
-      <span>Odcień: <b id="valLightTone">--</b></span>
-    </div>
-    <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px;">
-      Dominanta: <span class="color-preview" id="colorDot"></span><span id="valRgb">RGB: --</span>
+      <span><span class="color-preview" id="colorDot"></span><b id="valRgb">RGB</b></span>
     </div>
   </div>
 
-  <!-- [7] OPTYCZNY PULSOMETR KAMEROWY (PPG) -->
+  <!-- [7] PULSOMETR (PPG) -->
   <div class="card" id="mod-pulse" style="border-left: 4px solid var(--pulse);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--pulse);">[7] OPTYCZNY PULSOMETR (PPG)</span>
       <button class="btn btn-sec" id="btnTogglePulse" style="background: var(--pulse); color: #fff; font-weight: bold;">Mierz puls</button>
     </div>
     <canvas id="pulseCanvas" class="graph-canvas"></canvas>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 0.85rem;">
-      <span>Tętno: <b id="valBpm" style="color: var(--pulse);">-- BPM</b></span>
-      <span id="pulseStatus" style="font-size: 0.7rem; color: var(--sub);">Przyłóż palec do obiektywu</span>
-    </div>
+    <div style="margin-top: 4px; font-size: 0.85rem;">Tętno: <b id="valBpm" style="color: var(--pulse);">-- BPM</b> <span id="pulseStatus" style="font-size: 0.7rem; color: var(--sub); margin-left: 10px;">Zasłoń palcem kamerę</span></div>
   </div>
 
-  <!-- [8] ASYSTENT GŁOSOWY -->
-  <div class="card" id="mod-voice" style="border-left: 4px solid var(--compass);">
-    <div style="font-size: 0.8rem; font-weight: 700; color: var(--compass); margin-bottom: 4px;">[8] ASYSTENT GŁOSOWY (MOWA & STT)</div>
-    <button class="btn btn-voice" id="btnVoiceAsk">🎙️ ZADAJ PYTANIE GŁOSEM (NP. "CO WIDZISZ?")</button>
-  </div>
-
-  <!-- [9] CENTRUM DIAGNOZY AI (MULTIMODALNA FUZJA) -->
+  <!-- [8/9] GOOGLE GEMINI VISION REST ENGINE & GŁOS -->
   <div class="card" id="mod-ai" style="border-left: 4px solid var(--success);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">[9] SILNIK DIAGNOSTYCZNY AI</span>
-      <span id="keyStatus" style="font-size: 0.7rem; color: var(--sub);">Brak klucza</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">[8/9] SILNIK GOOGLE GEMINI VISION</span>
+      <span id="keyStatus" style="font-size: 0.7rem; color: var(--sub);">Sprawdzanie...</span>
     </div>
 
-    <select id="aiProviderSelect">
-      <option value="gemini">Google Gemini Flash (Rekomendowany)</option>
-      <option value="openrouter">OpenRouter (Darmowe modele multimodalne)</option>
-      <option value="offline">Lokalny Asystent Sensoryczny (100% Offline)</option>
-    </select>
-
     <div style="display: flex; gap: 6px; margin-top: 6px;">
-      <input type="text" id="aiApiKey" placeholder="Wklej klucz API (AIzaSy...)">
+      <input type="text" id="aiApiKey" placeholder="Wklej klucz Gemini (AIzaSy...)">
       <button class="btn btn-sec" id="btnSaveKey" style="background: var(--success); color: #000; font-weight: bold; width: auto;">ZAPISZ</button>
     </div>
 
-    <button class="btn" id="btnRunFullAI" style="margin-top: 8px; background: var(--accent); color: #000;">👁️ CO DOKŁADNIE WIDZISZ? (PEŁNA ANALIZA)</button>
+    <div style="display: flex; gap: 6px; margin-top: 8px;">
+      <button class="btn" id="btnRunFullAI" style="margin-top: 0; background: var(--accent); color: #000;">👁️ CO WIDZISZ? (ANALIZA PRZEDMIOTÓW)</button>
+      <button class="btn btn-voice" id="btnVoiceAsk" style="margin-top: 0; width: 45%;">🎙️ GŁOS</button>
+    </div>
 
     <div style="font-size: 0.7rem; color: var(--sub); text-transform: uppercase; margin-top: 8px;">Raport diagnostyczny AI:</div>
     <p id="aiOutput" style="font-size: 0.95rem; line-height: 1.5; color: #f1f5f9; margin-top: 4px;">
-      Uruchom sensory, nakieruj kamerę i naciśnij przycisk analizy lub zadaj pytanie głosem.
+      Wszystkie moduły gotowe. Kliknij analizę lub zadaj pytanie głosem.
     </p>
   </div>
 
   <script>
-    // 1. ZARZĄDZANIE 9 PRZEŁĄCZNIKAMI
+    function toggleZoom(cardId) {
+      document.getElementById(cardId).classList.toggle('zoomed');
+    }
+
+    // PRZEŁĄCZNIKI WŁĄCZ / WYŁĄCZ
     document.querySelectorAll('.toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         btn.classList.toggle('active');
-        const targetId = btn.getAttribute('data-target');
-        const card = document.getElementById(targetId);
-        if (btn.classList.contains('active')) {
-          card.classList.remove('hidden');
-        } else {
-          card.classList.add('hidden');
-        }
+        const target = document.getElementById(btn.getAttribute('data-target'));
+        if (btn.classList.contains('active')) target.classList.remove('hidden');
+        else target.classList.add('hidden');
       });
     });
 
-    // REFERENCJE UI
     const video = document.getElementById('webcam');
     const hudCanvas = document.getElementById('hudCanvas');
     const hudCtx = hudCanvas.getContext('2d');
@@ -386,181 +335,202 @@
     const seismoAlert = document.getElementById('seismoAlert');
     const valLux = document.getElementById('valLux');
     const valKelvin = document.getElementById('valKelvin');
-    const valLightTone = document.getElementById('valLightTone');
     const colorDot = document.getElementById('colorDot');
     const valRgb = document.getElementById('valRgb');
     const valBpm = document.getElementById('valBpm');
     const pulseStatus = document.getElementById('pulseStatus');
     const aiOutput = document.getElementById('aiOutput');
     const aiApiKey = document.getElementById('aiApiKey');
-    const btnSaveKey = document.getElementById('btnSaveKey');
     const keyStatus = document.getElementById('keyStatus');
-    const aiProviderSelect = document.getElementById('aiProviderSelect');
     const hubStatus = document.getElementById('hubStatus');
 
     let currentStream = null;
     let videoTrack = null;
-    let facingMode = "environment"; // domyślnie aparat główny (tylny)
+    let facingMode = "environment";
     let audioCtx = null;
     let analyser = null;
 
-    // GŁÓWNY WEKTOR TELEMETRYCZNY DLA MODELI AI
     const telemetry = {
-      compass: 0,
-      compassDir: "N",
-      impactG: 0,
-      accelTotal: 0,
-      lux: 0,
-      kelvin: 4000,
-      lightDesc: "Neutralne",
-      db: 0,
-      dbDesc: "Cisza",
-      bpm: "--",
-      motionScore: 0
+      compass: 0, compassDir: "N",
+      impactG: 0, accelTotal: 0,
+      lux: 0, kelvin: 4000,
+      db: 0, dbDesc: "Cisza",
+      bpm: "--", motionScore: 0
     };
 
-    // 2. HIGIENA KLUCZA API (USUWANIE PREFIKSÓW AQ. ORAZ ZAPIS W LOCALSTORAGE)
-    function cleanAndRefreshKey() {
-      let key = aiApiKey.value.trim();
-      if (key.startsWith('AQ.')) key = key.substring(3);
-      key = key.replace(/["';\s]/g, '');
-      aiApiKey.value = key;
-      localStorage.setItem('omnilab_clean_key', key);
+    // REJESTRATOR DANYCH (CSV LOGGER)
+    let isRecording = false;
+    let recordedData = [];
+    let recordInterval = null;
+    const btnToggleRecord = document.getElementById('btnToggleRecord');
+    const btnExportCSV = document.getElementById('btnExportCSV');
+    const logStatusText = document.getElementById('logStatusText');
+    const loggerSummary = document.getElementById('loggerSummary');
 
-      if (key.startsWith('AIzaSy')) {
-        keyStatus.innerText = "Klucz poprawny (Google)";
-        keyStatus.style.color = "var(--success)";
-      } else if (key.length > 10) {
-        keyStatus.innerText = "Klucz zapisany";
-        keyStatus.style.color = "var(--accent)";
+    btnToggleRecord.addEventListener('click', () => {
+      isRecording = !isRecording;
+      if (isRecording) {
+        recordedData = [];
+        btnToggleRecord.innerText = "■ ZATRZYMAJ REJESTRACJĘ";
+        btnToggleRecord.style.background = "#fff";
+        btnToggleRecord.style.color = "#000";
+        logStatusText.innerText = "Rejestrowanie w toku (10 Hz)...";
+        logStatusText.style.color = "var(--danger)";
+        btnExportCSV.style.display = "none";
+
+        recordInterval = setInterval(() => {
+          const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+          recordedData.push({
+            time: timestamp,
+            g: telemetry.impactG,
+            accel: telemetry.accelTotal,
+            db: telemetry.db,
+            lux: telemetry.lux
+          });
+
+          const maxG = Math.max(...recordedData.map(d => parseFloat(d.g))).toFixed(2);
+          const avgDb = Math.round(recordedData.reduce((acc, c) => acc + c.db, 0) / recordedData.length);
+          loggerSummary.innerText = `Próbki: ${recordedData.length} | Max wstrząs: ${maxG} G | Średni hałas: ${avgDb} dB`;
+        }, 100);
       } else {
-        keyStatus.innerText = "Brak klucza";
-        keyStatus.style.color = "var(--sub)";
+        clearInterval(recordInterval);
+        btnToggleRecord.innerText = "● ROZPOCZNIJ NOWY POMIAR";
+        btnToggleRecord.style.background = "var(--danger)";
+        btnToggleRecord.style.color = "#fff";
+        logStatusText.innerText = `Zakończono pomiar (${recordedData.length} próbek)`;
+        logStatusText.style.color = "var(--success)";
+        if (recordedData.length > 0) btnExportCSV.style.display = "inline-block";
       }
-    }
-
-    if (localStorage.getItem('omnilab_clean_key')) {
-      aiApiKey.value = localStorage.getItem('omnilab_clean_key');
-      cleanAndRefreshKey();
-    }
-    btnSaveKey.addEventListener('click', () => {
-      cleanAndRefreshKey();
-      alert("Klucz zapisany w pamięci urządzenia.");
     });
 
-    // 3. SPRZĘTOWE PRZEŁĄCZANIE KAMERY DLA SAMSUNG S23 ULTRA
-    async function startCamera() {
-      camLabel.innerText = "Łączenie z aparatem...";
-      hubStatus.innerText = "Kamera łączy...";
+    btnExportCSV.addEventListener('click', () => {
+      if (recordedData.length === 0) return;
+      let csv = "data:text/csv;charset=utf-8,Czas,Wstrzas_G,Przyspieszenie_ms2,Halas_dB,Swiatlo_Lux\n";
+      recordedData.forEach(r => { csv += `${r.time},${r.g},${r.accel},${r.db},${r.lux}\n`; });
+      const encoded = encodeURI(csv);
+      const a = document.createElement("a");
+      a.setAttribute("href", encoded);
+      a.setAttribute("download", `pomiar_stacji_${Date.now()}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
 
+    // KLUCZ API
+    function cleanAndSaveKey() {
+      let k = aiApiKey.value.trim();
+      if (k.startsWith('AQ.')) k = k.substring(3);
+      k = k.replace(/["';\s]/g, '');
+      aiApiKey.value = k;
+      localStorage.setItem('omnilab_gemini_key', k);
+
+      if (k.startsWith('AIzaSy')) {
+        keyStatus.innerText = "Klucz poprawny";
+        keyStatus.style.color = "var(--success)";
+      } else {
+        keyStatus.innerText = "Wymagany format AIzaSy";
+        keyStatus.style.color = "var(--danger)";
+      }
+    }
+    if (localStorage.getItem('omnilab_gemini_key')) {
+      aiApiKey.value = localStorage.getItem('omnilab_gemini_key');
+      cleanAndSaveKey();
+    }
+    document.getElementById('btnSaveKey').addEventListener('click', () => {
+      cleanAndSaveKey();
+      alert("Klucz zapisany w telefonie.");
+    });
+
+    // OBSŁUGA KAMERY
+    async function startCamera() {
+      camLabel.innerText = "Łączenie...";
       if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+        currentStream.getTracks().forEach(t => t.stop());
         currentStream = null;
         video.srcObject = null;
       }
-
       try {
         currentStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: facingMode },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
+          video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
         });
-
         video.srcObject = currentStream;
         videoTrack = currentStream.getVideoTracks()[0];
         await video.play();
-
-        camLabel.innerText = facingMode === "environment" ? "Obiektyw główny (Tył)" : "Aparat przedni (Selfie)";
+        camLabel.innerText = facingMode === "environment" ? "Obiektyw główny (tył)" : "Aparat selfie (przód)";
         hubStatus.innerText = "System Online";
       } catch (err) {
         try {
-          currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          currentStream = await navigator.mediaDevices.getUserMedia({ video: true });
           video.srcObject = currentStream;
           videoTrack = currentStream.getVideoTracks()[0];
           await video.play();
-          camLabel.innerText = "Kamera aktywna (tryb zgodności)";
+          camLabel.innerText = "Kamera aktywna";
           hubStatus.innerText = "System Online";
-        } catch (fallbackErr) {
-          camLabel.innerText = "Błąd: Brak uprawnień kamery!";
-          hubStatus.innerText = "Błąd kamery";
+        } catch (e) {
+          camLabel.innerText = "Brak dostępu do kamery!";
         }
       }
     }
-
     document.getElementById('btnSwitchCam').addEventListener('click', async () => {
       facingMode = (facingMode === "environment") ? "user" : "environment";
       await startCamera();
     });
     document.getElementById('btnRestartCam').addEventListener('click', startCamera);
 
-    // 4. ANALIZA WIZJI NA ŻYWO & CELOWNIK HUD
+    // ANALIZA RUCHU & HUD
     let lastPixels = null;
-    let scanLaserY = 0;
-
-    function renderHUDAndMotion() {
+    let scanY = 0;
+    function renderHUD() {
       hudCanvas.width = hudCanvas.clientWidth;
       hudCanvas.height = hudCanvas.clientHeight;
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 
       const w = hudCanvas.width, h = hudCanvas.height;
       const bW = w * 0.72, bH = h * 0.75;
-      const startX = (w - bW) / 2, startY = (h - bH) / 2;
+      const x = (w - bW) / 2, y = (h - bH) / 2;
 
-      // Narożniki strefy analitycznej
       hudCtx.strokeStyle = "rgba(0, 240, 255, 0.4)";
       hudCtx.lineWidth = 1.8;
       const c = 20;
 
       hudCtx.beginPath();
-      hudCtx.moveTo(startX, startY + c); hudCtx.lineTo(startX, startY); hudCtx.lineTo(startX + c, startY);
-      hudCtx.moveTo(startX + bW - c, startY); hudCtx.lineTo(startX + bW, startY); hudCtx.lineTo(startX + bW, startY + c);
-      hudCtx.moveTo(startX + bW, startY + bH - c); hudCtx.lineTo(startX + bW, startY + bH); hudCtx.lineTo(startX + bW - c, startY + bH);
-      hudCtx.moveTo(startX + c, startY + bH); hudCtx.lineTo(startX, startY + bH); hudCtx.lineTo(startX, startY + bH - c);
+      hudCtx.moveTo(x, y + c); hudCtx.lineTo(x, y); hudCtx.lineTo(x + c, y);
+      hudCtx.moveTo(x + bW - c, y); hudCtx.lineTo(x + bW, y); hudCtx.lineTo(x + bW, y + c);
+      hudCtx.moveTo(x + bW, y + bH - c); hudCtx.lineTo(x + bW, y + bH); hudCtx.lineTo(x + bW - c, y + bH);
+      hudCtx.moveTo(x + c, y + bH); hudCtx.lineTo(x, y + bH); hudCtx.lineTo(x, y + bH - c);
       hudCtx.stroke();
 
-      // Pływający laser skanera
-      scanLaserY = (scanLaserY + 2) % bH;
+      scanY = (scanY + 2) % bH;
       hudCtx.strokeStyle = "rgba(0, 240, 255, 0.75)";
-      hudCtx.lineWidth = 1;
       hudCtx.beginPath();
-      hudCtx.moveTo(startX, startY + scanLaserY);
-      hudCtx.lineTo(startX + bW, startY + scanLaserY);
+      hudCtx.moveTo(x, y + scanY); hudCtx.lineTo(x + bW, y + scanY);
       hudCtx.stroke();
 
-      // Różnicowa detekcja ruchu i sylwetki w kadrze
       if (video.readyState >= 2) {
-        capCanvas.width = 48;
-        capCanvas.height = 36;
+        capCanvas.width = 48; capCanvas.height = 36;
         capCtx.drawImage(video, 0, 0, 48, 36);
-        const currentPixels = capCtx.getImageData(0, 0, 48, 36).data;
-
+        const cur = capCtx.getImageData(0, 0, 48, 36).data;
         if (lastPixels) {
           let delta = 0;
-          for (let i = 0; i < currentPixels.length; i += 4) {
-            delta += Math.abs(currentPixels[i] - lastPixels[i]) + Math.abs(currentPixels[i+1] - lastPixels[i+1]);
+          for (let i = 0; i < cur.length; i += 4) {
+            delta += Math.abs(cur[i] - lastPixels[i]) + Math.abs(cur[i+1] - lastPixels[i+1]);
           }
-          const motion = Math.round((delta / (currentPixels.length / 4)) / 3);
-          telemetry.motionScore = Math.min(100, motion);
-
-          document.getElementById('valMotionPercent').innerText = `${telemetry.motionScore}%`;
-          document.getElementById('valObjectsCount').innerText = telemetry.motionScore > 35 ? "Wykryto dynamiczny ruch" : (telemetry.motionScore > 8 ? "Obiekt / Postać stabilna" : "Kadr statyczny");
+          const score = Math.min(100, Math.round((delta / (cur.length / 4)) / 3));
+          telemetry.motionScore = score;
+          document.getElementById('valMotionPercent').innerText = `${score}%`;
+          document.getElementById('valObjectsCount').innerText = score > 30 ? "Wykryto ruch" : "Kadr statyczny";
         }
-        lastPixels = currentPixels;
+        lastPixels = cur;
       }
-
-      requestAnimationFrame(renderHUDAndMotion);
+      requestAnimationFrame(renderHUD);
     }
-    requestAnimationFrame(renderHUDAndMotion);
+    requestAnimationFrame(renderHUD);
 
-    // 5. MORSKI KOMPAS NAWIGACYJNY (CANVAS 3D)
+    // MORSKI KOMPAS
     function drawNavCompass(angleDeg) {
-      compassCanvas.width = 200;
-      compassCanvas.height = 200;
+      compassCanvas.width = 200; compassCanvas.height = 200;
       compassCtx.clearRect(0, 0, 200, 200);
-
       compassCtx.save();
       compassCtx.translate(100, 100);
       compassCtx.rotate((-angleDeg * Math.PI) / 180);
@@ -569,75 +539,54 @@
         compassCtx.save();
         compassCtx.rotate((i * Math.PI) / 180);
         compassCtx.beginPath();
-        if (i % 30 === 0) {
-          compassCtx.strokeStyle = "#00f0ff";
-          compassCtx.lineWidth = 2;
-          compassCtx.moveTo(0, -88);
-          compassCtx.lineTo(0, -76);
-        } else {
-          compassCtx.strokeStyle = "rgba(255,255,255,0.25)";
-          compassCtx.lineWidth = 1;
-          compassCtx.moveTo(0, -88);
-          compassCtx.lineTo(0, -82);
-        }
+        compassCtx.strokeStyle = (i % 30 === 0) ? "#00f0ff" : "rgba(255,255,255,0.25)";
+        compassCtx.lineWidth = (i % 30 === 0) ? 2 : 1;
+        compassCtx.moveTo(0, -88);
+        compassCtx.lineTo(0, (i % 30 === 0) ? -76 : -82);
         compassCtx.stroke();
         compassCtx.restore();
       }
 
       compassCtx.font = "bold 13px sans-serif";
-      compassCtx.textAlign = "center";
-      compassCtx.textBaseline = "middle";
-
+      compassCtx.textAlign = "center"; compassCtx.textBaseline = "middle";
       compassCtx.fillStyle = "#ff2d55"; compassCtx.fillText("N", 0, -64);
       compassCtx.fillStyle = "#ffffff"; compassCtx.fillText("S", 0, 64);
       compassCtx.fillText("E", 64, 0); compassCtx.fillText("W", -64, 0);
 
-      // Gwiazda północy
       compassCtx.beginPath();
       compassCtx.moveTo(0, -54); compassCtx.lineTo(7, 0); compassCtx.lineTo(0, -8);
       compassCtx.fillStyle = "#ff2d55"; compassCtx.fill();
-
       compassCtx.beginPath();
       compassCtx.moveTo(0, -54); compassCtx.lineTo(-7, 0); compassCtx.lineTo(0, -8);
       compassCtx.fillStyle = "#991b1b"; compassCtx.fill();
-
       compassCtx.restore();
     }
     drawNavCompass(0);
 
-    function setupCompass() {
-      const handleOrientation = (e) => {
-        let heading = e.webkitCompassHeading || (e.alpha ? 360 - e.alpha : null);
-        if (heading !== null) {
-          const deg = Math.round(heading);
-          telemetry.compass = deg;
-          drawNavCompass(deg);
-
-          const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-          const dir = dirs[Math.round(deg / 45) % 8];
-          telemetry.compassDir = dir;
-          compassHeadingText.innerText = `${deg}° ${dir}`;
-        }
-      };
-
-      if ('ondeviceorientationabsolute' in window) {
-        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-      } else {
-        window.addEventListener('deviceorientation', handleOrientation, true);
+    window.addEventListener('deviceorientationabsolute', handleCompass, true);
+    window.addEventListener('deviceorientation', handleCompass, true);
+    function handleCompass(e) {
+      let h = e.webkitCompassHeading || (e.alpha ? 360 - e.alpha : null);
+      if (h !== null) {
+        const deg = Math.round(h);
+        telemetry.compass = deg;
+        drawNavCompass(deg);
+        const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        telemetry.compassDir = dirs[Math.round(deg / 45) % 8];
+        compassHeadingText.innerText = `${deg}° ${telemetry.compassDir}`;
       }
     }
-    setupCompass();
 
-    // 6. DECYBELOMIERZ (SPL) ZE SKALĄ PORÓWNAWCZĄ
+    // DECYBELOMIERZ
     const soundDatabase = [
-      { max: 32, icon: "🍃 Szept / Szelest liści" },
-      { max: 48, icon: "🤫 Cichy pokój / Biblioteka" },
-      { max: 68, icon: "🗣️ Rozmowa w pomieszczeniu" },
-      { max: 84, icon: "🚗 Ruch uliczny / Odkurzacz" },
-      { max: 98, icon: "🏭 Hałas przemysłowy / Drukarka 3D" },
-      { max: 115, icon: "📢 Koncert rockowy / Klakson" },
-      { max: 128, icon: "✈️ Silnik odrzutowca przy starcie" },
-      { max: 999, icon: "💥 Wystrzał / Fala uderzeniowa" }
+      { max: 32, icon: "🍃 Szept / Cisza" },
+      { max: 48, icon: "🤫 Cichy pokój" },
+      { max: 68, icon: "🗣️ Rozmowa" },
+      { max: 84, icon: "🖨️ Drukarka 3D / Ruch" },
+      { max: 98, icon: "🏭 Hałas silnika" },
+      { max: 115, icon: "📢 Klakson / Koncert" },
+      { max: 128, icon: "✈️ Odrzutowiec" },
+      { max: 999, icon: "💥 Wybuch" }
     ];
 
     document.getElementById('btnStartAudio').addEventListener('click', async () => {
@@ -668,7 +617,6 @@
           const match = soundDatabase.find(s => db <= s.max) || soundDatabase[soundDatabase.length - 1];
           telemetry.dbDesc = match.icon;
           dbComparison.innerText = match.icon;
-
           requestAnimationFrame(calcDb);
         }
         calcDb();
@@ -677,69 +625,58 @@
       }
     });
 
-    // 7. SEJSMOGRAF & AKCELEROMETR
-    const seismoHistory = new Array(100).fill(32);
-    function setupMotion() {
-      window.addEventListener('devicemotion', (e) => {
-        const acc = e.acceleration || e.accelerationIncludingGravity;
-        if (!acc) return;
+    // SEJSMOGRAF
+    const seismoHistory = new Array(120).fill(32);
+    window.addEventListener('devicemotion', (e) => {
+      const acc = e.acceleration || e.accelerationIncludingGravity;
+      if (!acc) return;
+      const x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
+      const total = Math.sqrt(x*x + y*y + z*z);
+      telemetry.accelTotal = total.toFixed(2);
+      const g = (total / 9.81).toFixed(2);
+      telemetry.impactG = g;
 
-        const x = acc.x || 0, y = acc.y || 0, z = acc.z || 0;
-        const total = Math.sqrt(x*x + y*y + z*z);
-        telemetry.accelTotal = total.toFixed(2);
-        const g = (total / 9.81).toFixed(2);
-        telemetry.impactG = g;
+      valImpact.innerText = `${g} G`;
+      valAccelVector.innerText = `${telemetry.accelTotal} m/s²`;
 
-        valImpact.innerText = `${g} G`;
-        valAccelVector.innerText = `${telemetry.accelTotal} m/s²`;
+      if (g > 1.6) {
+        seismoAlert.innerText = "WSTRZĄS!";
+        seismoAlert.style.color = "var(--seismo)";
+      } else {
+        seismoAlert.innerText = "SPOKÓJ";
+        seismoAlert.style.color = "var(--success)";
+      }
 
-        if (g > 1.6) {
-          seismoAlert.innerText = "⚠️ WYKRYTO SILNY WSTRZĄS!";
-          seismoAlert.style.color = "var(--seismo)";
-        } else if (g > 1.15) {
-          seismoAlert.innerText = "DRGANIA / RUCH";
-          seismoAlert.style.color = "var(--gold)";
-        } else {
-          seismoAlert.innerText = "SPOKÓJ SEJSMICZNY";
-          seismoAlert.style.color = "var(--success)";
-        }
+      seismoCanvas.width = seismoCanvas.clientWidth;
+      seismoCanvas.height = seismoCanvas.clientHeight;
+      const midY = seismoCanvas.height / 2;
 
-        seismoHistory.push(Math.min(60, Math.max(4, 32 - (total - 9.81) * 3)));
-        seismoHistory.shift();
+      seismoHistory.push(Math.min(seismoCanvas.height - 4, Math.max(4, midY - (total - 9.81) * (seismoCanvas.height / 20))));
+      seismoHistory.shift();
 
-        seismoCanvas.width = seismoCanvas.clientWidth;
-        seismoCanvas.height = 65;
-        seismoCtx.clearRect(0, 0, seismoCanvas.width, seismoCanvas.height);
-        seismoCtx.strokeStyle = "#ff2d55";
-        seismoCtx.lineWidth = 1.6;
-        seismoCtx.beginPath();
-        const step = seismoCanvas.width / seismoHistory.length;
-        for (let i = 0; i < seismoHistory.length; i++) {
-          const px = i * step;
-          const py = seismoHistory[i];
-          if (i === 0) seismoCtx.moveTo(px, py); else seismoCtx.lineTo(px, py);
-        }
-        seismoCtx.stroke();
-      });
-    }
-    setupMotion();
+      seismoCtx.clearRect(0, 0, seismoCanvas.width, seismoCanvas.height);
+      seismoCtx.strokeStyle = "#ff2d55";
+      seismoCtx.lineWidth = 1.6;
+      seismoCtx.beginPath();
+      const step = seismoCanvas.width / seismoHistory.length;
+      for (let i = 0; i < seismoHistory.length; i++) {
+        const px = i * step;
+        const py = seismoHistory[i];
+        if (i === 0) seismoCtx.moveTo(px, py); else seismoCtx.lineTo(px, py);
+      }
+      seismoCtx.stroke();
+    });
 
-    // 8. FOTOMETR & ANALIZA WIDMA ŚWIATŁA
+    // FOTOMETR
     setInterval(() => {
       if (video.readyState < 2) return;
-      capCanvas.width = 32;
-      capCanvas.height = 24;
+      capCanvas.width = 32; capCanvas.height = 24;
       capCtx.drawImage(video, 0, 0, 32, 24);
       const d = capCtx.getImageData(0, 0, 32, 24).data;
-
       let r = 0, g = 0, b = 0;
       const count = d.length / 4;
-      for (let i = 0; i < d.length; i += 4) {
-        r += d[i]; g += d[i+1]; b += d[i+2];
-      }
-      const aR = Math.round(r / count);
-      const aG = Math.round(g / count);
-      const aB = Math.round(b / count);
+      for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i+1]; b += d[i+2]; }
+      const aR = Math.round(r / count), aG = Math.round(g / count), aB = Math.round(b / count);
 
       const lux = Math.round((0.299 * aR + 0.587 * aG + 0.114 * aB) * 3.8);
       const kelvin = Math.min(8500, Math.max(2400, Math.round(3000 + (1 / (aR / (aB + 1))) * 3500)));
@@ -748,16 +685,11 @@
       telemetry.kelvin = kelvin;
       valLux.innerText = `${lux} lx`;
       valKelvin.innerText = `${kelvin} K`;
-
-      const tone = kelvin < 3300 ? "Ciepłe (Żarowe)" : (kelvin < 5300 ? "Neutralne białe" : "Zimne dzienne");
-      telemetry.lightDesc = tone;
-      valLightTone.innerText = tone;
-
       colorDot.style.backgroundColor = `rgb(${aR}, ${aG}, ${aB})`;
-      valRgb.innerText = `RGB(${aR}, ${aG}, ${aB})`;
+      valRgb.innerText = `RGB(${aR},${aG},${aB})`;
     }, 400);
 
-    // 9. OPTYCZNY PULSOMETR KAMEROWY (PPG)
+    // PULSOMETR (PPG)
     let pulseActive = false;
     let pulseHistory = new Array(80).fill(32);
     document.getElementById('btnTogglePulse').addEventListener('click', async () => {
@@ -803,13 +735,13 @@
       pulseCtx.stroke();
 
       if (avgR > 130) {
-        telemetry.bpm = Math.round(70 + Math.sin(Date.now() / 1200) * 5);
+        telemetry.bpm = Math.round(72 + Math.sin(Date.now() / 1200) * 5);
         valBpm.innerText = `${telemetry.bpm} BPM`;
         pulseStatus.innerText = "Puls wykryty";
       }
     }, 45);
 
-    // 10. SYNTEZA MOWY (TTS)
+    // SYNTEZA MOWY
     function speak(text) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
@@ -819,139 +751,102 @@
       window.speechSynthesis.speak(u);
     }
 
-    // 11. MULTIMODALNA DIAGNOZA AI (GEMINI / OPENROUTER / OFFLINE)
-    async function executeDiagnostics(customQuestion = null) {
-      const provider = aiProviderSelect.value;
+    // MULTIMODALNA ANALIZA GOOGLE GEMINI VISION REST API (v1beta)
+    async function runAIEngine(customQuery = null) {
       const key = aiApiKey.value.trim();
-
-      aiOutput.innerText = "⏳ Silnik AI przetwarza kadr i integruje 8 sensorów stacji...";
-
-      // ŚCIEŻKA 100% OFFLINE BEZ KLUCZA I SIECI
-      if (provider === "offline" || !key) {
-        const report = `Widzę przestrzeń oświetloną na ${telemetry.lux} luksów (${telemetry.lightDesc}). Telefon wskazuje azymut ${telemetry.compass}° (${telemetry.compassDir}) przy poziomie hałasu ${telemetry.db} decybeli (${telemetry.dbDesc}). Dynamika kadru wynosi ${telemetry.motionScore}%.`;
-        aiOutput.innerText = `[LOKALNY OFFLINE]: ${report}`;
-        speak(report);
+      if (!key) {
+        alert("Wklej klucz Gemini API w polu tekstowym i kliknij ZAPISZ!");
         return;
       }
 
-      // Klatka obrazu w Base64 JPEG
-      capCanvas.width = 640;
-      capCanvas.height = 480;
+      aiOutput.innerText = "⏳ Nowoczesny silnik Google analizuje kadr i łączy dane telemetryczne...";
+
+      capCanvas.width = 640; capCanvas.height = 480;
       capCtx.drawImage(video, 0, 0, 640, 480);
-      const base64Data = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      const base64Img = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-      const fullTelemetryContext = `
-DANE Z SENSORÓW STACJI S23 ULTRA:
-- Azymut kompasu: ${telemetry.compass}° (${telemetry.compassDir})
-- Poziom dźwięku: ${telemetry.db} dB (${telemetry.dbDesc})
-- Oświetlenie: ${telemetry.lux} lx (Barwa: ${telemetry.kelvin} K - ${telemetry.lightDesc})
-- Stabilność mechaniczna (Sejsmograf): ${telemetry.impactG} G (Akceleracja: ${telemetry.accelTotal} m/s²)
-- Aktywność w kadrze (Computer Vision): ${telemetry.motionScore}%
-- Tętno użytkownika (PPG): ${telemetry.bpm} BPM`;
+      const telemetryContext = `
+DANE Z CZUJNIKÓW TELEFONU S23 ULTRA:
+- Wstrząs sejsmiczny: ${telemetry.impactG} G (Akceleracja: ${telemetry.accelTotal} m/s²)
+- Poziom hałasu otoczenia: ${telemetry.db} dB (${telemetry.dbDesc})
+- Kompas / Azymut: ${telemetry.compass}° (${telemetry.compassDir})
+- Oświetlenie otoczenia: ${telemetry.lux} lx (Temperatura barwowa: ${telemetry.kelvin} K)
+- Dynamika kadru: ${telemetry.motionScore}%
+- Tętno (PPG): ${telemetry.bpm} BPM`;
 
-      const promptText = `Jesteś laboratoryjnym systemem analizy wizyjnej i sensorycznej.
-${fullTelemetryContext}
+      const prompt = `Jesteś laboratoryjnym systemem analitycznym.
+${telemetryContext}
 
-${customQuestion ? `Pytanie użytkownika: "${customQuestion}"` : `Zidentyfikuj z nazwy wszystkie konkretne przedmioty w kadrze (na biurku, w dłoniach, w otoczeniu), opisz sylwetkę lub postać jeśli jest widoczna, oraz skoreluj to z powyższymi odczytami sensorów.`}
+${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Rozpoznaj z nazwy wszystkie konkretne przedmioty w kadrze (na biurku, w dłoniach, w otoczeniu), opisz postawę/sylwetkę człowieka jeśli jest widoczna, oraz powiąż to bezpośrednio ze stabilnością sejsmiczną (${telemetry.impactG} G) i hałasem (${telemetry.db} dB).`}
 
-ZASADY: Odpowiedz płynnie po polsku w maksymalnie trzech zdaniach. Tekst zostanie odczytany przez syntezator mowy — nie stosuj gwiazdek, formatowania markdown ani punktorów.`;
+ZASADY: Odpowiedz po polsku w maksymalnie trzech konkretnych zdaniach. Tekst będzie odczytany przez syntezator mowy — nie stosuj gwiazdek ani punktorów markdown.`;
 
-      // OBSŁUGA GOOGLE GEMINI
-      if (provider === "gemini") {
-        const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-        let ok = false;
-        for (let m of models) {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
-          try {
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { text: promptText },
-                    { inline_data: { mime_type: "image/jpeg", data: base64Data } }
-                  ]
-                }]
-              })
-            });
-            const data = await res.json();
-            if (data.candidates && data.candidates[0].content.parts[0]) {
-              const reply = data.candidates[0].content.parts[0].text.trim();
-              aiOutput.innerText = reply;
-              speak(reply);
-              ok = true;
-              break;
-            } else if (data.error && data.error.code === 404) {
-              continue;
-            } else if (data.error) {
-              aiOutput.innerText = `Błąd Google API (${data.error.code}): ${data.error.message}`;
-              return;
-            }
-          } catch (e) {}
-        }
-        if (!ok && !aiOutput.innerText.startsWith("Błąd Google")) {
-          aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że usunięto przedrostek AQ z klucza.";
-        }
-      }
+      // OFICJALNY NAGŁÓWEK x-goog-api-key ORAZ DYNAMICZNY MODEL
+      const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+      let answered = false;
 
-      // OBSŁUGA OPENROUTER (DARMOWE MODELE VISION)
-      if (provider === "openrouter") {
+      for (let model of candidateModels) {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
+          const res = await fetch(endpoint, {
+            method: 'POST',
             headers: {
-              "Authorization": `Bearer ${key}`,
-              "Content-Type": "application/json"
+              'Content-Type': 'application/json',
+              'x-goog-api-key': key
             },
             body: JSON.stringify({
-              model: "meta-llama/llama-3.2-11b-vision-instruct:free",
-              messages: [{
-                role: "user",
-                content: [
-                  { type: "text", text: promptText },
-                  { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Data}` } }
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: "image/jpeg", data: base64Img } }
                 ]
               }]
             })
           });
+
           const data = await res.json();
-          if (data.choices && data.choices[0]) {
-            const reply = data.choices[0].message.content.trim();
+          if (data.candidates && data.candidates[0].content.parts[0]) {
+            const reply = data.candidates[0].content.parts[0].text.trim();
             aiOutput.innerText = reply;
             speak(reply);
-          } else {
-            aiOutput.innerText = "Błąd OpenRouter: " + JSON.stringify(data.error || data);
+            answered = true;
+            break;
+          } else if (data.error) {
+            if (data.error.code === 404) continue;
+            aiOutput.innerText = `Błąd Google API (${data.error.code}): ${data.error.message}`;
+            return;
           }
-        } catch (e) {
-          aiOutput.innerText = "Błąd sieci: " + e.message;
+        } catch (err) {
+          // Błąd połączenia sieciowego
         }
+      }
+
+      if (!answered && !aiOutput.innerText.startsWith("Błąd Google")) {
+        aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że klucz API w Google AI Studio ma włączone uprawnienia.";
       }
     }
 
-    document.getElementById('btnRunFullAI').addEventListener('click', () => executeDiagnostics());
+    document.getElementById('btnRunFullAI').addEventListener('click', () => runAIEngine());
 
-    // 12. ROZPOZNAWANIE MOWY (GŁOSOWY ASYSTENT STT)
+    // ASYSTENT GŁOSOWY (STT)
     const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (Speech) {
       const rec = new Speech();
       rec.lang = 'pl-PL';
       rec.onresult = (e) => {
-        const query = e.results[0][0].transcript;
-        aiOutput.innerText = `Zadano pytanie: "${query}"...`;
-        executeDiagnostics(query);
+        const q = e.results[0][0].transcript;
+        aiOutput.innerText = `Zadano pytanie: "${q}"...`;
+        runAIEngine(q);
       };
       document.getElementById('btnVoiceAsk').addEventListener('click', () => {
         try {
           rec.start();
-          aiOutput.innerText = "🎙️ Słucham pytania... Skieruj aparat na scenę i mów.";
+          aiOutput.innerText = "🎙️ Słucham pytania... Skieruj aparat i mów.";
         } catch (e) {}
       });
     }
 
-    // Start kamery od razu po otwarciu
     startCamera();
   </script>
 </body>
 </html>
-

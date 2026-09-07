@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>OmniLab Pro Station // APK Engine</title>
+  <title>OmniLab Pro Station // Multi-Engine & XiaoZhi Hub</title>
   
   <style>
     :root {
@@ -17,6 +17,7 @@
       --gold: #fbbf24;
       --success: #10b981;
       --danger: #ef4444;
+      --xiaozhi: #3b82f6;
       --text: #f8fafc;
       --sub: #94a3b8;
     }
@@ -32,8 +33,9 @@
       margin-bottom: 10px;
       border-bottom: 1px solid var(--border);
     }
-    header h1 { font-size: 0.95rem; color: var(--accent); font-weight: 800; }
+    header h1 { font-size: 0.95rem; color: var(--accent); font-weight: 800; letter-spacing: 0.5px; }
 
+    /* MENU 9 MODUŁÓW */
     .module-manager {
       background: #0f172a;
       border-radius: 10px;
@@ -57,6 +59,7 @@
       font-weight: 600;
       cursor: pointer;
       text-align: center;
+      user-select: none;
     }
     .toggle-btn.active {
       background: rgba(0, 240, 255, 0.15);
@@ -70,11 +73,12 @@
       padding: 12px;
       margin-bottom: 10px;
       border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
       position: relative;
     }
     .card.hidden { display: none !important; }
 
-    /* TRYB POWIĘKSZENIA (ZOOM) */
+    /* PEŁNY EKRAN WYKRESU (ZOOM) */
     .card.zoomed {
       position: fixed !important;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -86,7 +90,7 @@
 
     /* KAMERA & HUD */
     .viewport-box {
-      position: relative; width: 100%; height: 35vh; min-height: 240px;
+      position: relative; width: 100%; height: 34vh; min-height: 240px;
       border-radius: 8px; overflow: hidden; background: #000;
       border: 1px solid rgba(0, 240, 255, 0.25);
     }
@@ -97,7 +101,7 @@
     /* KOMPAS */
     .compass-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 0; }
     .compass-housing {
-      position: relative; width: 190px; height: 190px; border-radius: 50%;
+      position: relative; width: 180px; height: 180px; border-radius: 50%;
       background: radial-gradient(circle, #1e293b 0%, #090e17 70%, #020617 100%);
       border: 4px solid #334155; display: flex; align-items: center; justify-content: center;
       box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
@@ -107,7 +111,7 @@
       border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 13px solid var(--accent);
       z-index: 5;
     }
-    #compassDialCanvas { width: 174px; height: 174px; }
+    #compassDialCanvas { width: 166px; height: 166px; }
     .compass-center-screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; z-index: 6; }
 
     /* DECYBELOMIERZ */
@@ -121,19 +125,21 @@
     #seismoCanvas { border: 1px solid rgba(255, 45, 85, 0.25); }
     #pulseCanvas { border: 1px solid rgba(236, 72, 153, 0.25); }
 
-    /* PRZYCISKI */
+    /* PRZYCISKI & POLA */
     .btn {
       width: 100%; background: var(--accent); color: #030712; border: none;
       padding: 12px; border-radius: 8px; font-size: 0.9rem; font-weight: 700;
       cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px;
+      transition: 0.15s;
     }
     .btn:active { transform: scale(0.98); }
     .btn-sec { background: rgba(255,255,255,0.1); color: #fff; padding: 6px 12px; font-size: 0.75rem; width: auto; margin-top: 0; }
     .btn-voice { background: var(--compass); color: #fff; }
     .btn-record { background: var(--danger); color: #fff; }
     .btn-zoom { background: rgba(0, 240, 255, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+    .btn-xiaozhi { background: var(--xiaozhi); color: #fff; }
 
-    input[type="text"] {
+    input[type="text"], select {
       width: 100%; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
       color: #fff; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-top: 6px;
     }
@@ -144,13 +150,13 @@
 <body>
 
   <header>
-    <h1>OMNILAB PRO // APK PLATFORM</h1>
+    <h1>OMNILAB PRO // MULTI-ENGINE HUB</h1>
     <span style="font-size: 0.75rem; color: var(--accent);" id="hubStatus">Inicjalizacja</span>
   </header>
 
-  <!-- LISTA PRZEŁĄCZNIKÓW MODUŁÓW -->
+  <!-- PANEL UKRYWANIA / POKAZYWANIA MODUŁÓW -->
   <div class="module-manager">
-    <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">WŁĄCZ / WYŁĄCZ REALIZACJE:</span>
+    <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">ZARZĄDZANIE MODUŁAMI:</span>
     <div class="toggle-grid">
       <div class="toggle-btn active" data-target="mod-camera">[1] Kamera</div>
       <div class="toggle-btn active" data-target="mod-vision">[2] Analiza Wizji</div>
@@ -160,11 +166,11 @@
       <div class="toggle-btn active" data-target="mod-logger">[★] Rejestrator CSV</div>
       <div class="toggle-btn active" data-target="mod-light">[6] Fotometr</div>
       <div class="toggle-btn active" data-target="mod-pulse">[7] Pulsometr PPG</div>
-      <div class="toggle-btn active" data-target="mod-ai">[8/9] Gemini & Mowa</div>
+      <div class="toggle-btn active" data-target="mod-ai">[8/9] Silniki AI & Głos</div>
     </div>
   </div>
 
-  <!-- [★] REJESTRATOR DANYCH DO PLIKU / BADANIE DRUKARKI -->
+  <!-- [★] REJESTRATOR DANYCH CSV / BADANIE DRUKARKI -->
   <div class="card" id="mod-logger" style="border-left: 4px solid var(--danger);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--danger);">REJESTRATOR DANYCH (CSV EXPORT)</span>
@@ -192,12 +198,12 @@
     </div>
   </div>
 
-  <!-- [2] ANALIZA WIZYJNA -->
+  <!-- [2] ANALIZA WIZYJNA & RUCH -->
   <div class="card" id="mod-vision" style="border-left: 4px solid var(--accent);">
-    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] DETEKCJA WIZYJNA & RUCH</div>
+    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent);">[2] DETEKCJA WIZYJNA & RUCH (REAL-TIME)</div>
     <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
-      <span>Wektor dynamiki: <b id="valMotionPercent" style="color: var(--accent);">0%</b></span>
-      <span>Stan kadru: <b id="valObjectsCount" style="color: #fff;">Statyczny</b></span>
+      <span>Dynamika kadru: <b id="valMotionPercent" style="color: var(--accent);">0%</b></span>
+      <span>Stan obiektów: <b id="valObjectsCount" style="color: #fff;">Statyczny</b></span>
     </div>
   </div>
 
@@ -235,7 +241,7 @@
     <div class="meter-bar"><div class="meter-fill" id="dbMeterFill"></div></div>
   </div>
 
-  <!-- [5] SEJSMOGRAF -->
+  <!-- [5] SEJSMOGRAF Z ZOOMEM -->
   <div class="card" id="mod-seismo" style="border-left: 4px solid var(--seismo);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <span style="font-size: 0.8rem; font-weight: 700; color: var(--seismo);">[5] SEJSMOGRAF & AKTYWNOŚĆ WSTRZĄSÓW</span>
@@ -251,7 +257,7 @@
     </div>
   </div>
 
-  <!-- [6] FOTOMETR -->
+  <!-- [6] FOTOMETR & SPEKTROMETR -->
   <div class="card" id="mod-light" style="border-left: 4px solid #fff;">
     <div style="font-size: 0.8rem; font-weight: 700; color: #fff;">[6] FOTOMETR & SPEKTROMETR</div>
     <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem;">
@@ -271,15 +277,24 @@
     <div style="margin-top: 4px; font-size: 0.85rem;">Tętno: <b id="valBpm" style="color: var(--pulse);">-- BPM</b> <span id="pulseStatus" style="font-size: 0.7rem; color: var(--sub); margin-left: 10px;">Zasłoń kamerę palcem</span></div>
   </div>
 
-  <!-- [8/9] GOOGLE GEMINI VISION ENGINE -->
+  <!-- [8/9] MULTI-ENGINE AI & ASYSTENT XIAOZHI -->
   <div class="card" id="mod-ai" style="border-left: 4px solid var(--success);">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">[8/9] SILNIK GEMINI VISION (GOOGLE AI)</span>
-      <span id="keyStatus" style="font-size: 0.7rem; color: var(--sub);">Weryfikacja...</span>
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--success);">[8/9] SILNIKI AI & ASYSTENT GŁOSOWY</span>
+      <span id="keyStatus" style="font-size: 0.7rem; color: var(--sub);">Wybierz silnik</span>
     </div>
 
+    <!-- WYBÓR SILNIKA AI -->
+    <select id="aiEngineSelect">
+      <option value="gemini">Google Gemini Flash (v1beta REST - Szybki)</option>
+      <option value="openrouter">OpenRouter (Darmowe modele Llama Vision / Qwen)</option>
+      <option value="groq">Groq Cloud (Llama 3.2 Vision - Ultra Low Latency)</option>
+      <option value="xiaozhi">Chmura XiaoZhi AI (xiaozhi.me / Serwer Głosu)</option>
+      <option value="offline">Lokalny Asystent Sensoryczny (100% Offline)</option>
+    </select>
+
     <div style="display: flex; gap: 6px; margin-top: 6px;">
-      <input type="text" id="aiApiKey" placeholder="Wklej klucz Gemini (AIzaSy...)">
+      <input type="text" id="aiApiKey" placeholder="Klucz API lub Adres Serwera XiaoZhi (wss://...)">
       <button class="btn btn-sec" id="btnSaveKey" style="background: var(--success); color: #000; font-weight: bold; width: auto;">ZAPISZ</button>
     </div>
 
@@ -290,7 +305,7 @@
 
     <div style="font-size: 0.7rem; color: var(--sub); text-transform: uppercase; margin-top: 8px;">Raport diagnostyczny AI:</div>
     <p id="aiOutput" style="font-size: 0.95rem; line-height: 1.5; color: #f1f5f9; margin-top: 4px;">
-      Gotowy do pracy. Skieruj obiektyw i wciśnij przycisk analizy.
+      Skieruj aparat, wybierz silnik i wciśnij analizę.
     </p>
   </div>
 
@@ -309,7 +324,6 @@
       });
     });
 
-    // DOM
     const video = document.getElementById('webcam');
     const hudCanvas = document.getElementById('hudCanvas');
     const hudCtx = hudCanvas.getContext('2d');
@@ -340,6 +354,7 @@
     const aiApiKey = document.getElementById('aiApiKey');
     const keyStatus = document.getElementById('keyStatus');
     const hubStatus = document.getElementById('hubStatus');
+    const aiEngineSelect = document.getElementById('aiEngineSelect');
 
     let currentStream = null;
     let videoTrack = null;
@@ -415,32 +430,56 @@
       document.body.removeChild(a);
     });
 
-    // 2. KLUCZ API GOOGLE
-    function cleanAndSaveKey() {
-      let k = aiApiKey.value.trim();
-      if (k.startsWith('AQ.')) k = k.substring(3);
-      k = k.replace(/["';\s]/g, '');
-      aiApiKey.value = k;
-      localStorage.setItem('omnilab_gemini_key', k);
+    // 2. ZARZĄDZANIE KLUCZAMI WIELU SILNIKÓW
+    function getStoredKey(engine) {
+      return localStorage.getItem(`omnilab_key_${engine}`) || '';
+    }
 
-      if (k.startsWith('AIzaSy')) {
-        keyStatus.innerText = "Klucz poprawny";
+    aiEngineSelect.addEventListener('change', () => {
+      const eng = aiEngineSelect.value;
+      aiApiKey.value = getStoredKey(eng);
+      if (eng === "xiaozhi" && !aiApiKey.value) {
+        aiApiKey.placeholder = "Adres serwera (np. wss://api.xiaozhi.me/v1/chat lub domyślny)";
+      } else {
+        aiApiKey.placeholder = "Wklej klucz API dla wybranego silnika";
+      }
+      updateKeyBadge();
+    });
+
+    function updateKeyBadge() {
+      const eng = aiEngineSelect.value;
+      const k = aiApiKey.value.trim();
+      if (eng === "offline") {
+        keyStatus.innerText = "Offline (Bez klucza)";
+        keyStatus.style.color = "var(--success)";
+      } else if (eng === "xiaozhi") {
+        keyStatus.innerText = "Tryb XiaoZhi";
+        keyStatus.style.color = "var(--xiaozhi)";
+      } else if (k.length > 5) {
+        keyStatus.innerText = `Zapisano dla ${eng}`;
         keyStatus.style.color = "var(--success)";
       } else {
-        keyStatus.innerText = "Wymagany format AIzaSy";
+        keyStatus.innerText = "Wymagany klucz";
         keyStatus.style.color = "var(--danger)";
       }
     }
-    if (localStorage.getItem('omnilab_gemini_key')) {
-      aiApiKey.value = localStorage.getItem('omnilab_gemini_key');
-      cleanAndSaveKey();
-    }
+
     document.getElementById('btnSaveKey').addEventListener('click', () => {
-      cleanAndSaveKey();
-      alert("Klucz został pomyślnie zapisany w pamięci urządzenia.");
+      const eng = aiEngineSelect.value;
+      let k = aiApiKey.value.trim();
+      if (eng === "gemini" && k.startsWith('AQ.')) k = k.substring(3);
+      k = k.replace(/["';\s]/g, '');
+      aiApiKey.value = k;
+      localStorage.setItem(`omnilab_key_${eng}`, k);
+      updateKeyBadge();
+      alert(`Zapisano dane dla silnika: ${eng.toUpperCase()}`);
     });
 
-    // 3. SPRZĘTOWE PRZEŁĄCZANIE OBIEKTYWÓW S23 ULTRA
+    // Wczytanie na start
+    aiApiKey.value = getStoredKey(aiEngineSelect.value);
+    updateKeyBadge();
+
+    // 3. SPRZĘTOWE PRZEŁĄCZANIE APARATÓW DLA SAMSUNG S23 ULTRA
     async function loadCameras() {
       try {
         const initS = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -489,7 +528,7 @@
         camLabel.innerText = "Kamera aktywna";
         hubStatus.innerText = "System Online";
       } catch (e) {
-        camLabel.innerText = "Błąd: Brak uprawnień do kamery!";
+        camLabel.innerText = "Brak dostępu do kamery!";
       }
     }
 
@@ -502,7 +541,7 @@
       }
     });
 
-    // 4. ANALIZA WIZYJNA & HUD
+    // 4. DETEKCJA WIZYJNA & HUD
     let lastPixels = null;
     let scanY = 0;
     function renderHUD() {
@@ -551,7 +590,7 @@
     }
     requestAnimationFrame(renderHUD);
 
-    // 5. KOMPAS MORSKI (POPRAWIONA MATEMATYKA ORIENTACJI)
+    // 5. KOMPAS MORSKI
     function drawNavCompass(angleDeg) {
       compassCanvas.width = 200; compassCanvas.height = 200;
       compassCtx.clearRect(0, 0, 200, 200);
@@ -789,75 +828,193 @@
       window.speechSynthesis.speak(u);
     }
 
-    // 11. GOOGLE GEMINI VISION REST ENGINE
+    // 11. MULTI-ENGINE AI & XIAOZHI INTEGRATION
     async function runAIEngine(customQuery = null) {
-      const key = aiApiKey.value.trim();
-      if (!key) {
-        alert("Wklej klucz Gemini API w module AI i kliknij ZAPISZ!");
-        return;
-      }
+      const engine = aiEngineSelect.value;
+      const keyOrUrl = aiApiKey.value.trim();
 
-      aiOutput.innerText = "⏳ Gemini analizuje kadr i integruje sensory...";
+      aiOutput.innerText = `⏳ Przetwarzanie przez silnik [${engine.toUpperCase()}]...`;
 
       capCanvas.width = 640; capCanvas.height = 480;
       capCtx.drawImage(video, 0, 0, 640, 480);
       const base64Img = capCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
       const telemetryContext = `
-DANE Z SENSORÓW TELEFONU S23 ULTRA:
-- Wstrząs sejsmiczny: ${telemetry.impactG} G (Przyspieszenie wypadkowe: ${telemetry.accelTotal} m/s²)
+DANE Z CZUJNIKÓW TELEFONU S23 ULTRA:
+- Wstrząs sejsmiczny: ${telemetry.impactG} G (Przyspieszenie: ${telemetry.accelTotal} m/s²)
 - Poziom hałasu: ${telemetry.db} dB (${telemetry.dbDesc})
 - Kompas / Azymut: ${telemetry.compass}° (${telemetry.compassDir})
-- Oświetlenie otoczenia: ${telemetry.lux} lx (${telemetry.kelvin} K)
+- Oświetlenie: ${telemetry.lux} lx (Barwa: ${telemetry.kelvin} K)
 - Dynamika kadru: ${telemetry.motionScore}%
-- Tętno użytkownika (PPG): ${telemetry.bpm} BPM`;
+- Tętno (PPG): ${telemetry.bpm} BPM`;
 
-      const prompt = `Jesteś laboratoryjnym asystentem telemetrycznym stacji OmniLab.
+      const prompt = `Jesteś laboratoryjnym analitykiem telemetryczno-wizyjnym.
 ${telemetryContext}
 
-${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Rozpoznaj z nazwy wszystkie konkretne przedmioty w kadrze (na stole, w ręku, w tle), opisz sylwetkę/człowieka jeśli jest widoczny, oraz powiąż to z odczytem wstrząsów (${telemetry.impactG} G) i hałasu (${telemetry.db} dB).`}
+${customQuery ? `Pytanie użytkownika: "${customQuery}"` : `Rozpoznaj z nazwy wszystkie konkretne przedmioty w kadrze, opisz postawę/sylwetkę człowieka jeśli jest widoczna, oraz powiąż to bezpośrednio ze stabilnością sejsmiczną (${telemetry.impactG} G) i hałasem (${telemetry.db} dB).`}
 
-ZASADY: Odpowiedz po polsku w maksymalnie trzech konkretnych zdaniach. Tekst będzie odczytany przez syntezator mowy — nie stosuj gwiazdek ani punktorów markdown.`;
+ZASADY: Odpowiedz po polsku w maksymalnie trzech zwięzłych zdaniach. Tekst będzie odczytany przez syntezator mowy — nie stosuj gwiazdek ani punktorów markdown.`;
 
-      const candidateModels = ["gemini-2.5-flash", "gemini-2.0-flash"];
-      let answered = false;
+      // 1. OFFLINE
+      if (engine === "offline") {
+        const report = `Widzę przestrzeń oświetloną na ${telemetry.lux} luksów. Telefon wskazuje azymut ${telemetry.compass}° (${telemetry.compassDir}) przy hałasie ${telemetry.db} dB (${telemetry.dbDesc}). Dynamika kadru wynosi ${telemetry.motionScore}%.`;
+        aiOutput.innerText = `[LOKALNY OFFLINE]: ${report}`;
+        speak(report);
+        return;
+      }
 
-      for (let model of candidateModels) {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      // 2. GOOGLE GEMINI (v1beta REST)
+      if (engine === "gemini") {
+        if (!keyOrUrl) return alert("Wklej klucz Gemini API (AIzaSy...)!");
+        const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+        let answered = false;
+
+        for (let model of candidateModels) {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': keyOrUrl },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: "image/jpeg", data: base64Img } }] }]
+              })
+            });
+
+            const data = await res.json();
+            if (data.candidates && data.candidates[0].content.parts[0]) {
+              const reply = data.candidates[0].content.parts[0].text.trim();
+              aiOutput.innerText = reply;
+              speak(reply);
+              answered = true;
+              break;
+            } else if (data.error && data.error.code !== 404) {
+              aiOutput.innerText = `Błąd Google API (${data.error.code}): ${data.error.message}`;
+              return;
+            }
+          } catch (e) {}
+        }
+        if (!answered && !aiOutput.innerText.startsWith("Błąd Google")) {
+          aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że klucz API w Google AI Studio ma włączone uprawnienia.";
+        }
+        return;
+      }
+
+      // 3. OPENROUTER (Darmowe Llama Vision / Qwen)
+      if (engine === "openrouter") {
+        if (!keyOrUrl) return alert("Wklej klucz OpenRouter (sk-or-...)!");
         try {
-          const res = await fetch(endpoint, {
-            method: 'POST',
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': key
+              "Authorization": `Bearer ${keyOrUrl}`,
+              "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: prompt },
-                  { inline_data: { mime_type: "image/jpeg", data: base64Img } }
+              model: "meta-llama/llama-3.2-11b-vision-instruct:free",
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Img}` } }
                 ]
               }]
             })
           });
-
           const data = await res.json();
-          if (data.candidates && data.candidates[0].content.parts[0]) {
-            const reply = data.candidates[0].content.parts[0].text.trim();
-            aiOutput.innerText = reply;
-            speak(reply);
-            answered = true;
-            break;
-          } else if (data.error) {
-            if (data.error.code === 404) continue;
-            aiOutput.innerText = `Błąd Google API (${data.error.code}): ${data.error.message}`;
-            return;
+          if (data.choices && data.choices[0]) {
+            const rep = data.choices[0].message.content.trim();
+            aiOutput.innerText = rep;
+            speak(rep);
+          } else {
+            aiOutput.innerText = "Błąd OpenRouter: " + JSON.stringify(data.error || data);
           }
-        } catch (err) {}
+        } catch (e) {
+          aiOutput.innerText = "Błąd połączenia OpenRouter: " + e.message;
+        }
+        return;
       }
 
-      if (!answered && !aiOutput.innerText.startsWith("Błąd Google")) {
-        aiOutput.innerText = "Nie udało się połączyć. Upewnij się, że klucz API w Google AI Studio ma włączone uprawnienia.";
+      // 4. GROQ CLOUD (Ultra-Fast Llama Vision)
+      if (engine === "groq") {
+        if (!keyOrUrl) return alert("Wklej klucz Groq API (gsk_...)!");
+        try {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${keyOrUrl}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: "llama-3.2-11b-vision-preview",
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Img}` } }
+                ]
+              }]
+            })
+          });
+          const data = await res.json();
+          if (data.choices && data.choices[0]) {
+            const rep = data.choices[0].message.content.trim();
+            aiOutput.innerText = rep;
+            speak(rep);
+          } else {
+            aiOutput.innerText = "Błąd Groq: " + JSON.stringify(data.error || data);
+          }
+        } catch (e) {
+          aiOutput.innerText = "Błąd sieci Groq: " + e.message;
+        }
+        return;
+      }
+
+      // 5. CHMURA XIAOZHI AI (xiaozhi.me / Streaming WebSocket)
+      if (engine === "xiaozhi") {
+        const wsServer = keyOrUrl.startsWith('ws') ? keyOrUrl : "wss://api.xiaozhi.me/v1/chat";
+        aiOutput.innerText = `⏳ Łączenie z chmurą XiaoZhi AI (${wsServer})...`;
+
+        try {
+          const socket = new WebSocket(wsServer);
+
+          socket.onopen = () => {
+            aiOutput.innerText = "XiaoZhi: Połączono. Wysyłanie klatki wizji i telemetrii...";
+            const payload = {
+              type: "explain",
+              session_id: "omnilab_" + Date.now(),
+              text: prompt,
+              image: `data:image/jpeg;base64,${base64Img}`
+            };
+            socket.send(JSON.stringify(payload));
+          };
+
+          socket.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (msg.text || msg.content) {
+                const answer = msg.text || msg.content;
+                aiOutput.innerText = `[XIAOZHI AI]: ${answer}`;
+                speak(answer);
+              }
+            } catch (e) {
+              aiOutput.innerText = `[XIAOZHI STREAM]: ${event.data}`;
+            }
+          };
+
+          socket.onerror = (err) => {
+            aiOutput.innerText = "XiaoZhi: Błąd połączenia z serwerem WebSocket. Jeśli serwer publiczny jest przeciążony, podaj adres swojego lokalnego serwera XiaoZhi w polu powyżej.";
+          };
+
+          setTimeout(() => {
+            if (socket.readyState === WebSocket.CONNECTING) {
+              socket.close();
+              aiOutput.innerText = "XiaoZhi: Przekroczono czas oczekiwania na serwer. Przełącz na Gemini lub Groq.";
+            }
+          }, 8000);
+
+        } catch (err) {
+          aiOutput.innerText = "Błąd protokołu XiaoZhi: " + err.message;
+        }
       }
     }
 
